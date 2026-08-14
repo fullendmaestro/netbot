@@ -54,7 +54,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              className="data-[slot=sidebar-menu-button]:p-1.5! h-10 w-10 justify-center"
+              className="data-[slot=sidebar-menu-button]:p-1.5! h-10! w-10! justify-center"
               render={<a href="#" />}
               tooltip="Netbot"
             >
@@ -75,7 +75,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     tooltip={item.title}
                     isActive={item.isActive}
                     render={<a href={item.url} />}
-                    className="h-10 w-10 justify-center rounded-md transition-colors hover:bg-accent/50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground [&>svg]:size-6 [&>svg]:stroke-[1.5]"
+                    className="h-10! w-10! justify-center rounded-md transition-colors hover:bg-accent/50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground [&>svg]:size-6! [&>svg]:stroke-[1.5]"
                   >
                     {item.icon}
                   </SidebarMenuButton>
@@ -94,7 +94,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuButton
                     render={<a href={item.url} />}
                     tooltip={item.title}
-                    className="h-10 w-10 justify-center rounded-md transition-colors hover:bg-accent/50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground [&>svg]:size-6 [&>svg]:stroke-[1.5]"
+                    className="h-10! w-10! justify-center rounded-md transition-colors hover:bg-accent/50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground [&>svg]:size-6! [&>svg]:stroke-[1.5]"
                   >
                     {item.icon}
                   </SidebarMenuButton>

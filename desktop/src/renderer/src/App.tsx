@@ -62,6 +62,7 @@ export function App() {
 
   return (
     <SidebarProvider
+      defaultOpen={false}
       style={{
         "--sidebar-width": "16rem",
       } as React.CSSProperties}

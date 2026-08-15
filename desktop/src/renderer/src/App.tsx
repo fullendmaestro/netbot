@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import {
   AssistantRuntimeProvider,
   AssistantTransportConnectionMetadata,
@@ -46,6 +47,10 @@ const dummyDevices = [
 ];
 
 export function App() {
+  useEffect(() => {
+    document.documentElement.classList.add("dark");
+  }, []);
+
   const runtime = useAssistantTransportRuntime({
     initialState: { messages: [] },
     api: "http://localhost:8010/assistant", // your assistant-transport-backend URL
@@ -69,8 +74,8 @@ export function App() {
     >
       <AppSidebar variant="inset" />
       <SidebarInset>
-        <div className="flex flex-1 flex-row overflow-hidden bg-background">
-          
+        <div className="flex flex-1 flex-row overflow-hidden">
+
           {/* Main Workspace Area (Device Table) */}
           <div className="flex flex-1 flex-col overflow-y-auto">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">

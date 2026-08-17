@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import { DatabaseSync } from "node:sqlite";
 import { app } from "electron";
 import { join } from "path";
 import type { DeviceConfig } from "../shared/types";
@@ -7,15 +7,15 @@ import type { DeviceConfig } from "../shared/types";
 const dbPath = join(app.getPath("userData"), "netbot_devices.sqlite");
 
 export class DeviceDatabase {
-  private db: Database;
+  private db: DatabaseSync;
 
   constructor() {
-    this.db = new Database(dbPath);
+    this.db = new DatabaseSync(dbPath);
     this.init();
   }
 
   private init() {
-    this.db.run(`
+    this.db.exec(`
       CREATE TABLE IF NOT EXISTS devices (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -33,7 +33,8 @@ export class DeviceDatabase {
   }
 
   getDevices(): DeviceConfig[] {
-    const rows = this.db.query("SELECT * FROM devices").all() as any[];
+    const query = this.db.prepare("SELECT * FROM devices");
+    const rows = query.all() as any[];
     return rows.map(row => ({
       ...row,
       connectionStatus: 'Offline' // Default status when loaded
@@ -43,24 +44,25 @@ export class DeviceDatabase {
   addDevice(device: DeviceConfig) {
     const query = this.db.prepare(`
       INSERT INTO devices (id, name, type, host, port, username, authType, password, privateKey, path, baudRate)
-      VALUES ($id, $name, $type, $host, $port, $username, $authType, $password, $privateKey, $path, $baudRate)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    query.run({
-      $id: device.id,
-      $name: device.name,
-      $type: device.type,
-      $host: device.host || null,
-      $port: device.port || null,
-      $username: device.username || null,
-      $authType: device.authType || null,
-      $password: device.password || null,
-      $privateKey: device.privateKey || null,
-      $path: device.path || null,
-      $baudRate: device.baudRate || null,
-    });
+    query.run(
+      device.id,
+      device.name,
+      device.type,
+      device.host || null,
+      device.port || null,
+      device.username || null,
+      device.authType || null,
+      device.password || null,
+      device.privateKey || null,
+      device.path || null,
+      device.baudRate || null
+    );
   }
 
   removeDevice(id: string) {
-    this.db.run("DELETE FROM devices WHERE id = ?", [id]);
+    const query = this.db.prepare("DELETE FROM devices WHERE id = ?");
+    query.run(id);
   }
 }

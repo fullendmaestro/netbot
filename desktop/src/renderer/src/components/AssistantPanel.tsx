@@ -1,53 +1,29 @@
 "use client";
 
-import {
-  AssistantRuntimeProvider,
-  AssistantTransportConnectionMetadata,
-  useAssistantTransportRuntime,
-  unstable_createMessageConverter as createMessageConverter,
-} from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useAdkRuntime, createAdkStream, createAdkSessionAdapter } from "@assistant-ui/react-google-adk";
 import { Thread } from "./assistant-ui/thread";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
-type Message = { role: "user" | "assistant"; parts: any[] };
-type State = { messages: Message[] };
+const ADK_URL = "http://localhost:8000";
+const APP_NAME = "copilot";
+const USER_ID = "user_1";
 
-const messageConverter = createMessageConverter((message: Message) => {
-  return {
-    role: message.role,
-    content: message.parts || [],
-  };
+const { adapter, load } = createAdkSessionAdapter({
+  apiUrl: ADK_URL,
+  appName: APP_NAME,
+  userId: USER_ID,
 });
 
-const converter = (
-  state: State,
-  connectionMetadata: AssistantTransportConnectionMetadata,
-) => {
-  const optimistic = connectionMetadata.pendingCommands
-    .filter((c) => c.type === "add-message")
-    .map((c) => c.message as Message);
-
-  const allMessages = [...(state.messages || []), ...optimistic];
-
-  return {
-    messages: messageConverter.toThreadMessages(allMessages),
-    isRunning: connectionMetadata.isSending || false,
-  };
-};
-
 export function AssistantPanel() {
-  const runtime = useAssistantTransportRuntime({
-    initialState: { messages: [] },
-    api: "http://localhost:8010/assistant", // your assistant-transport-backend URL
-    converter,
-    headers: {},
-    prepareSendCommandsRequest: (body) => {
-      console.log("Sending request to backend", body);
-      return body;
-    },
-    onError: (error) => {
-      console.error("Assistant Transport Error:", error);
-    }
+  const runtime = useAdkRuntime({
+    stream: createAdkStream({
+      api: ADK_URL,
+      appName: APP_NAME,
+      userId: USER_ID
+    }),
+    sessionAdapter: adapter,
+    load,
   });
 
   return (

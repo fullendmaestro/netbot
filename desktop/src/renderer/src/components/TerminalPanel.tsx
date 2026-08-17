@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 
@@ -21,7 +21,7 @@ export function TerminalPanel() {
     term.open(terminalRef.current);
 
     // Listen to data from main process
-    const removeListener = (window as any).api.onTerminalData((data: string) => {
+    (window as any).api.onTerminalData((data: string) => {
       term.write(data);
     });
 

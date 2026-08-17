@@ -77,9 +77,9 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table"
-import { GripVerticalIcon, CircleCheckIcon, LoaderIcon, EllipsisVerticalIcon, Columns3Icon, ChevronDownIcon, PlusIcon, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon } from "lucide-react"
+import { GripVerticalIcon, CircleCheckIcon, LoaderIcon, EllipsisVerticalIcon, Columns3Icon, ChevronDownIcon, PlusIcon, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, TerminalSquareIcon } from "lucide-react"
 
-import type { DeviceConfig } from "../../shared/types"
+import type { DeviceConfig } from "../../../shared/types"
 
 const features = tableFeatures({
   columnFilteringFeature,
@@ -194,7 +194,14 @@ const columns = columnHelper.columns([
             </Button>
           }
         />
-        <DropdownMenuContent align="end" className="w-32">
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuItem onClick={() => {
+            (window as any).api.connectDevice(row.original);
+            window.dispatchEvent(new CustomEvent('open-terminal'));
+          }}>
+            <TerminalSquareIcon className="size-4 mr-2" />
+            Open Terminal
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => (window as any).api.connectDevice(row.original)}>
             Connect
           </DropdownMenuItem>
@@ -389,12 +396,12 @@ export function DeviceTable() {
           </DropdownMenu>
 
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger asChild>
+            <DialogTrigger render={
               <Button variant="outline" size="sm">
                 <PlusIcon className="mr-2 size-4" />
                 <span className="hidden lg:inline">Add Device</span>
               </Button>
-            </DialogTrigger>
+            } />
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>Add Device</DialogTitle>
@@ -432,7 +439,7 @@ export function DeviceTable() {
                     <div className="space-y-1">
                       <Label htmlFor="path">Port / Path</Label>
                       <div className="flex gap-2">
-                        <Select value={serialPath} onValueChange={setSerialPath}>
+                        <Select value={serialPath} onValueChange={(val) => val && setSerialPath(val)}>
                           <SelectTrigger className="flex-1">
                             <SelectValue placeholder="Select a port" />
                           </SelectTrigger>
@@ -448,7 +455,7 @@ export function DeviceTable() {
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor="baud">Baud Rate</Label>
-                      <Select value={serialBaud} onValueChange={setSerialBaud}>
+                      <Select value={serialBaud} onValueChange={(val) => val && setSerialBaud(val)}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>

@@ -36,11 +36,10 @@ import {
   type Row,
   type SortingState,
 } from "@tanstack/react-table"
-import { z } from "zod"
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "./ui/badge"
+import { Button } from "./ui/button"
+import { Checkbox } from "./ui/checkbox"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -48,9 +47,20 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "./ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
+import { Input } from "./ui/input"
 
-import { Label } from "@/components/ui/label"
+import { Label } from "./ui/label"
 import {
   Select,
   SelectContent,
@@ -58,7 +68,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "./ui/select"
 import {
   Table,
   TableBody,
@@ -66,8 +76,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "./ui/table"
 import { GripVerticalIcon, CircleCheckIcon, LoaderIcon, EllipsisVerticalIcon, Columns3Icon, ChevronDownIcon, PlusIcon, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon } from "lucide-react"
+
+import type { DeviceConfig } from "../../shared/types"
 
 const features = tableFeatures({
   columnFilteringFeature,
@@ -80,20 +92,12 @@ const features = tableFeatures({
   sortedRowModel: createSortedRowModel(),
 })
 
-export const schema = z.object({
-  id: z.number(),
-  name: z.string(),
-  ipAddress: z.string(),
-  type: z.string(),
-  connection: z.string(),
-})
-
 const columnHelper = createColumnHelper<
   typeof features,
-  z.infer<typeof schema>
+  DeviceConfig
 >()
 
-function DragHandle({ id }: { id: number }) {
+function DragHandle({ id }: { id: string }) {
   const { attributes, listeners } = useSortable({ id })
   return (
     <Button
@@ -146,34 +150,37 @@ const columns = columnHelper.columns([
     header: "Name",
     cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
   }),
-  columnHelper.accessor("ipAddress", {
-    header: "IP Address",
-    cell: ({ row }) => <span className="font-mono text-sm">{row.original.ipAddress}</span>,
+  columnHelper.display({
+    id: "address",
+    header: "Address / Path",
+    cell: ({ row }) => <span className="font-mono text-sm">{row.original.type === 'ssh' ? row.original.host : row.original.path}</span>,
   }),
   columnHelper.accessor("type", {
     header: "Type",
     cell: ({ row }) => (
-      <Badge variant="outline" className="px-1.5 text-muted-foreground">
+      <Badge variant="outline" className="px-1.5 text-muted-foreground uppercase">
         {row.original.type}
       </Badge>
     ),
   }),
-  columnHelper.accessor("connection", {
+  columnHelper.accessor("connectionStatus", {
     header: "Connection",
     cell: ({ row }) => (
       <Badge variant="outline" className="px-1.5 text-muted-foreground">
-        {row.original.connection === "Connected" ? (
+        {row.original.connectionStatus === "Connected" ? (
           <CircleCheckIcon className="fill-green-500 dark:fill-green-400 size-4 mr-1" />
-        ) : (
+        ) : row.original.connectionStatus === "Connecting" ? (
           <LoaderIcon className="size-4 mr-1 animate-spin" />
+        ) : (
+          <CircleCheckIcon className="fill-gray-500 dark:fill-gray-600 size-4 mr-1" />
         )}
-        {row.original.connection}
+        {row.original.connectionStatus}
       </Badge>
     ),
   }),
   columnHelper.display({
     id: "actions",
-    cell: () => (
+    cell: ({ row }) => (
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
@@ -188,10 +195,16 @@ const columns = columnHelper.columns([
           }
         />
         <DropdownMenuContent align="end" className="w-32">
-          <DropdownMenuItem>Connect</DropdownMenuItem>
-          <DropdownMenuItem>Configure</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => (window as any).api.connectDevice(row.original)}>
+            Connect
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => (window as any).api.disconnectDevice()}>
+            Disconnect
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive">Remove</DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onClick={() => (window as any).api.removeDevice(row.original.id)}>
+            Remove
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     ),
@@ -201,7 +214,7 @@ const columns = columnHelper.columns([
 function DraggableRow({
   row,
 }: {
-  row: Row<typeof features, z.infer<typeof schema>>
+  row: Row<typeof features, DeviceConfig>
 }) {
   const { transform, transition, setNodeRef, isDragging } = useSortable({
     id: row.original.id,
@@ -226,23 +239,28 @@ function DraggableRow({
   )
 }
 
-export function DeviceTable({
-  data: initialData,
-}: {
-  data: z.infer<typeof schema>[]
-}) {
-  const [data, setData] = React.useState(() => initialData)
+export function DeviceTable() {
+  const [data, setData] = React.useState<DeviceConfig[]>([])
   const [rowSelection, setRowSelection] = React.useState({})
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<ColumnVisibilityState>({})
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  )
+  const [columnVisibility, setColumnVisibility] = React.useState<ColumnVisibilityState>({})
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
     pageSize: 10,
   })
+
+  // Add Device form state
+  const [isAddOpen, setIsAddOpen] = React.useState(false);
+  const [deviceName, setDeviceName] = React.useState("");
+  const [sshHost, setSshHost] = React.useState("");
+  const [sshUser, setSshUser] = React.useState("");
+  const [sshPass, setSshPass] = React.useState("");
+  const [serialPath, setSerialPath] = React.useState("");
+  const [serialBaud, setSerialBaud] = React.useState("9600");
+  const [addTab, setAddTab] = React.useState("ssh");
+  const [serialPorts, setSerialPorts] = React.useState<any[]>([]);
+
   const sortableId = React.useId()
   const sensors = useSensors(
     useSensor(MouseSensor, {}),
@@ -253,6 +271,51 @@ export function DeviceTable({
     () => data?.map(({ id }) => id) || [],
     [data]
   )
+
+  React.useEffect(() => {
+    // Load initial devices
+    (window as any).api.getDevices().then(setData);
+
+    // Listen for updates
+    (window as any).api.onDevicesUpdated((devices: DeviceConfig[]) => {
+      setData(devices);
+    });
+
+    (window as any).api.onDeviceStatus((update: { id: string, status: string }) => {
+      setData(prev => prev.map(d => d.id === update.id ? { ...d, connectionStatus: update.status as any } : d));
+    });
+  }, []);
+
+  const handleAddDevice = () => {
+    const newDevice: DeviceConfig = {
+      id: crypto.randomUUID(),
+      name: deviceName || (addTab === 'ssh' ? sshHost : serialPath),
+      type: addTab as 'ssh' | 'serial',
+      connectionStatus: 'Offline',
+      ...(addTab === 'ssh' ? {
+        host: sshHost,
+        username: sshUser,
+        password: sshPass,
+        authType: 'password',
+        port: 22
+      } : {
+        path: serialPath,
+        baudRate: parseInt(serialBaud, 10)
+      })
+    };
+    (window as any).api.addDevice(newDevice);
+    setIsAddOpen(false);
+    // reset form
+    setDeviceName(""); setSshHost(""); setSshUser(""); setSshPass(""); setSerialPath("");
+  };
+
+  const handleFetchPorts = async () => {
+    const ports = await (window as any).api.getSerialPorts();
+    setSerialPorts(ports);
+    if (ports.length > 0 && !serialPath) {
+      setSerialPath(ports[0].path);
+    }
+  };
 
   const table = useTable({
     features,
@@ -324,10 +387,90 @@ export function DeviceTable({
                 })}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm">
-            <PlusIcon className="mr-2 size-4" />
-            <span className="hidden lg:inline">Add Device</span>
-          </Button>
+
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <PlusIcon className="mr-2 size-4" />
+                <span className="hidden lg:inline">Add Device</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Add Device</DialogTitle>
+                <DialogDescription>
+                  Configure a new SSH or Serial device connection.
+                </DialogDescription>
+              </DialogHeader>
+              <Tabs value={addTab} onValueChange={setAddTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="ssh">SSH</TabsTrigger>
+                  <TabsTrigger value="serial">Serial</TabsTrigger>
+                </TabsList>
+                <div className="py-4 space-y-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="name">Display Name (Optional)</Label>
+                    <Input id="name" value={deviceName} onChange={e => setDeviceName(e.target.value)} placeholder="My Router" />
+                  </div>
+                  
+                  <TabsContent value="ssh" className="space-y-4 mt-0">
+                    <div className="space-y-1">
+                      <Label htmlFor="host">Host / IP</Label>
+                      <Input id="host" value={sshHost} onChange={e => setSshHost(e.target.value)} placeholder="192.168.1.1" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="user">Username</Label>
+                      <Input id="user" value={sshUser} onChange={e => setSshUser(e.target.value)} placeholder="admin" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="pass">Password</Label>
+                      <Input id="pass" type="password" value={sshPass} onChange={e => setSshPass(e.target.value)} />
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="serial" className="space-y-4 mt-0">
+                    <div className="space-y-1">
+                      <Label htmlFor="path">Port / Path</Label>
+                      <div className="flex gap-2">
+                        <Select value={serialPath} onValueChange={setSerialPath}>
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Select a port" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {serialPorts.length === 0 && <SelectItem value="none" disabled>No ports found</SelectItem>}
+                            {serialPorts.map(p => (
+                              <SelectItem key={p.path} value={p.path}>{p.path}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button variant="outline" onClick={handleFetchPorts}>Refresh</Button>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="baud">Baud Rate</Label>
+                      <Select value={serialBaud} onValueChange={setSerialBaud}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="9600">9600</SelectItem>
+                          <SelectItem value="19200">19200</SelectItem>
+                          <SelectItem value="38400">38400</SelectItem>
+                          <SelectItem value="57600">57600</SelectItem>
+                          <SelectItem value="115200">115200</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </TabsContent>
+                </div>
+              </Tabs>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+                <Button onClick={handleAddDevice}>Save Device</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
         </div>
       </div>
       <div className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6">
@@ -379,7 +522,7 @@ export function DeviceTable({
             </Table>
           </DndContext>
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pb-6">
           <div className="hidden flex-1 text-sm text-muted-foreground lg:flex">
             {table.getFilteredSelectedRowModel().rows.length} of{" "}
             {table.getFilteredRowModel().rows.length} row(s) selected.

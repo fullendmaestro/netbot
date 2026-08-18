@@ -11,47 +11,88 @@ export function TerminalPanel({ sessionId, visible }: TerminalPanelProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
 
+  // Helper function to extract and format live CSS variables
+  const getThemeColors = () => {
+    if (typeof window === "undefined") return { bg: "#18181b", fg: "#f4f4f5" };
+
+    const rootStyles = getComputedStyle(document.documentElement);
+    // Grab the live shadcn sidebar colors (automatically converted to rgb/rgba by the browser)
+    const bg = rootStyles.getPropertyValue("--sidebar").trim();
+    const fg = rootStyles.getPropertyValue("--sidebar-foreground").trim();
+    const cursor = rootStyles.getPropertyValue("--sidebar-foreground").trim();
+
+    return { bg, fg, cursor };
+  };
+
   useEffect(() => {
     if (!terminalRef.current) return;
 
-    // Initialize xterm
+    const initialColors = getThemeColors();
+
+    // 1. Initialize xterm with live shadcn sidebar variables
     const term = new Terminal({
       cursorBlink: true,
+      allowProposedApi: true,
       theme: {
-        background: '#18181b', // dark background to match shadcn
+        background: initialColors.bg,
+        foreground: initialColors.fg,
+        cursor: initialColors.cursor,
       }
     });
 
     xtermRef.current = term;
     term.open(terminalRef.current);
 
-    // Listen to data from main process
-    (window as any).api.onTerminalData((payload: { sessionId: string, data: string }) => {
+    // 2. Watch for theme changes (.dark class added/removed on html tag)
+    const observer = new MutationObserver(() => {
+      const updatedColors = getThemeColors();
+      term.options.theme = {
+        background: updatedColors.bg,
+        foreground: updatedColors.fg,
+        cursor: updatedColors.cursor,
+      };
+      term.refresh(0, term.rows - 1);
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    // 3. Setup core logic stream
+    const removeListener = (window as any).api.onTerminalData((payload: { sessionId: string, data: string }) => {
       if (payload.sessionId === sessionId) {
         term.write(payload.data);
       }
     });
 
-    // Send input to main process
-    term.onData((data) => {
+    const dataDisposable = term.onData((data) => {
       (window as any).api.sendTerminalInput(sessionId, data);
     });
 
-    // Handle resize (basic approach, better with xterm-addon-fit)
-    const handleResize = () => {
-      // term.resize() needs proper dimensions. Without fit addon, we let it be for now or add a basic resize
-    };
-    window.addEventListener('resize', handleResize);
+    // Render cleanup on layout shifts
+    setTimeout(() => term.refresh(0, term.rows - 1), 50);
 
     return () => {
-      // cleanup
+      observer.disconnect();
+      dataDisposable.dispose();
+      if (typeof removeListener === "function") removeListener();
       term.dispose();
-      window.removeEventListener('resize', handleResize);
     };
   }, [sessionId]);
 
+  // Clean redraw when panel toggles visibility
+  useEffect(() => {
+    if (visible && xtermRef.current) {
+      xtermRef.current.refresh(0, xtermRef.current.rows - 1);
+    }
+  }, [visible]);
+
   return (
-    <div className={`w-full h-full p-2 bg-[#09090b] text-white ${visible ? 'block' : 'hidden'}`}>
+    <div
+      className={`w-full h-full p-2 bg-sidebar text-sidebar-foreground ${visible ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none absolute"
+        }`}
+    >
       <div className="w-full h-full overflow-hidden" ref={terminalRef}></div>
     </div>
   );

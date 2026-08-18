@@ -1,9 +1,11 @@
 "use client";
 
+import { PanelRightClose, History, SquarePen, MoreHorizontal } from "lucide-react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useAdkRuntime, createAdkStream, createAdkSessionAdapter } from "@assistant-ui/react-google-adk";
 import { Thread } from "./assistant-ui/thread";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
 
 const ADK_URL = "http://localhost:8000";
 const APP_NAME = "copilot";
@@ -27,11 +29,25 @@ export function AssistantPanel() {
   });
 
   return (
-    <Card className="shrink-0 flex flex-col my-2 mr-2 ml-0 rounded-xl overflow-hidden border gap-0 p-0 h-[calc(100svh-1rem)]">
-      <CardHeader className="h-12 px-4 py-3 border-b bg-muted/50 rounded-t-xl rounded-b-none">
-        <CardTitle className="text-xs text-muted-foreground font-medium tracking-wide uppercase">
+    <Card className="shrink-0 flex flex-col rounded-xl overflow-hidden border gap-0 p-0 h-[calc(100svh-1rem)]">
+      <CardHeader className="flex h-12 flex-row items-center justify-between px-3 py-2 border-b bg-muted/50 rounded-t-xl rounded-b-none">
+        <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
           Netbot Assistant
         </CardTitle>
+        <div className="flex items-center gap-0.5">
+          <Button variant="ghost" size="icon-sm">
+            <SquarePen className="size-4" />
+          </Button>
+          <Button variant="ghost" size="icon-sm">
+            <History className="size-4" />
+          </Button>
+          <Button variant="ghost" size="icon-sm">
+            <MoreHorizontal className="size-4" />
+          </Button>
+          <Button variant="ghost" size="icon-sm">
+            <PanelRightClose className="size-4" />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="flex-1 p-0 overflow-hidden [&_>_div]:h-full rounded-b-xl">
         <AssistantRuntimeProvider runtime={runtime}>

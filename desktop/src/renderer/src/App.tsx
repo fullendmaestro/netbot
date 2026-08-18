@@ -25,7 +25,7 @@ export function App() {
           <ResizablePanel defaultSize="75%" minSize="30%">
             <WorkspaceArea />
           </ResizablePanel>
-          <ResizableHandle withHandle />
+          <ResizableHandle withHandle={false} />
           <ResizablePanel defaultSize="25%" minSize="15%" maxSize="40%">
             <AssistantPanel />
           </ResizablePanel>

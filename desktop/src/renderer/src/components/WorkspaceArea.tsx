@@ -8,6 +8,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "./ui/resizable";
+import { Card } from "./ui/card";
 import type { DeviceConfig } from "../../../shared/types";
 import { cn } from "@/lib/utils";
 
@@ -59,29 +60,31 @@ export function WorkspaceArea() {
   return (
     <ResizablePanelGroup orientation="vertical" className="w-full h-full">
       <ResizablePanel defaultSize={isTerminalOpen ? 70 : 100} minSize={30}>
-        <div className="flex flex-1 flex-col h-full overflow-y-auto">
-          <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 md:px-6">
-            <SummaryCards />
-            <DeviceTable />
+        <Card className="flex flex-col flex-1 h-full rounded-xl overflow-hidden bg-background border gap-0 p-0">
+          <div className="flex flex-1 flex-col h-full overflow-y-auto">
+            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 md:px-6">
+              <SummaryCards />
+              <DeviceTable />
+            </div>
           </div>
-        </div>
+        </Card>
       </ResizablePanel>
       {isTerminalOpen && (
         <>
-          <ResizableHandle withHandle />
+          <ResizableHandle withHandle={false} />
           <ResizablePanel defaultSize={30} minSize={10}>
-            <div className="flex flex-col h-full bg-[#09090b]">
+            <Card className="flex flex-col h-full rounded-xl overflow-hidden border gap-0 p-0">
               {/* Tab Bar */}
-              <div className="flex items-center gap-1 px-2 pt-1.5 bg-background border-b border-border overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              <div className="flex items-center gap-1 px-2 pt-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                 {terminalTabs.map(tab => (
                   <div
                     key={tab.sessionId}
                     onClick={() => setActiveTabId(tab.sessionId)}
                     className={cn(
-                      "group relative flex items-center min-w-32 max-w-48 h-7 px-3 rounded-md cursor-pointer select-none text-sm font-medium transition-colors",
+                      "group relative flex items-center max-w-48 h-7 px-3 rounded-md cursor-pointer select-none text-sm font-medium transition-colors",
                       activeTabId === tab.sessionId
-                        ? "bg-muted text-foreground"
-                        : "text-muted-foreground hover:bg-muted/50"
+                        ? "bg-muted/50 text-foreground border-t border-x"
+                        : "text-muted-foreground hover:bg-muted"
                     )}
                   >
                     <span className="truncate flex-1">
@@ -98,14 +101,14 @@ export function WorkspaceArea() {
               </div>
 
               {/* Terminal Views */}
-              <div className="relative flex-1">
+              <div className="relative flex-1 bg-[#09090b]">
                 {terminalTabs.map(tab => (
                   <div key={tab.sessionId} className={`absolute inset-0 ${activeTabId === tab.sessionId ? 'block' : 'hidden'}`}>
                     <TerminalPanel sessionId={tab.sessionId} visible={activeTabId === tab.sessionId} />
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
           </ResizablePanel>
         </>
       )}

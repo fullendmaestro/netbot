@@ -9,6 +9,7 @@ import {
   ResizablePanelGroup,
 } from "./ui/resizable";
 import type { DeviceConfig } from "../../../shared/types";
+import { cn } from "@/lib/utils";
 
 interface TerminalTab {
   sessionId: string;
@@ -23,7 +24,7 @@ export function WorkspaceArea() {
     const handleOpenTerminalTab = (e: Event) => {
       const customEvent = e as CustomEvent<{ sessionId: string, device: DeviceConfig }>;
       const { sessionId, device } = customEvent.detail;
-      
+
       setTerminalTabs(prev => {
         if (!prev.find(t => t.sessionId === sessionId)) {
           return [...prev, { sessionId, device }];
@@ -39,7 +40,7 @@ export function WorkspaceArea() {
 
   const closeTab = (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     // Disconnect backend
     (window as any).api.disconnectDevice(sessionId);
 
@@ -71,28 +72,31 @@ export function WorkspaceArea() {
           <ResizablePanel defaultSize={30} minSize={10}>
             <div className="flex flex-col h-full bg-[#09090b]">
               {/* Tab Bar */}
-              <div className="flex overflow-x-auto border-y border-border bg-muted/10">
+              <div className="flex items-center gap-1 px-2 pt-1.5 bg-background border-b border-border overflow-x-auto [&::-webkit-scrollbar]:hidden">
                 {terminalTabs.map(tab => (
                   <div
                     key={tab.sessionId}
                     onClick={() => setActiveTabId(tab.sessionId)}
-                    className={`group flex items-center min-w-32 max-w-48 h-9 px-3 border-r border-border cursor-pointer select-none
-                      ${activeTabId === tab.sessionId ? 'bg-[#09090b] text-foreground' : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'}`}
+                    className={cn(
+                      "group relative flex items-center min-w-32 max-w-48 h-7 px-3 rounded-md cursor-pointer select-none text-sm font-medium transition-colors",
+                      activeTabId === tab.sessionId
+                        ? "bg-muted text-foreground"
+                        : "text-muted-foreground hover:bg-muted/50"
+                    )}
                   >
-                    <span className="truncate flex-1 text-sm font-medium">
+                    <span className="truncate flex-1">
                       {tab.device.name || (tab.device.type === 'ssh' ? tab.device.host : tab.device.path) || 'Terminal'}
                     </span>
                     <button
                       onClick={(e) => closeTab(tab.sessionId, e)}
-                      className="ml-2 p-0.5 rounded-md opacity-0 group-hover:opacity-100 hover:bg-muted/50 hover:text-foreground transition-opacity"
-                      title="Close Tab"
+                      className="ml-2 p-0.5 rounded-sm opacity-0 group-hover:opacity-100 hover:bg-accent transition-opacity"
                     >
                       <XIcon className="size-3" />
                     </button>
                   </div>
                 ))}
               </div>
-              
+
               {/* Terminal Views */}
               <div className="relative flex-1">
                 {terminalTabs.map(tab => (

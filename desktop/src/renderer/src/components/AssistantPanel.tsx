@@ -27,7 +27,7 @@ export function AssistantPanel() {
   });
 
   return (
-    <Card className="w-[340px] shrink-0 flex flex-col my-2 mr-2 ml-0 rounded-xl overflow-hidden border gap-0 p-0 h-[calc(100svh-1rem)]">
+    <Card className="shrink-0 flex flex-col my-2 mr-2 ml-0 rounded-xl overflow-hidden border gap-0 p-0 h-[calc(100svh-1rem)]">
       <CardHeader className="h-12 px-4 py-3 border-b bg-muted/50 rounded-t-xl rounded-b-none">
         <CardTitle className="text-xs text-muted-foreground font-medium tracking-wide uppercase">
           Netbot Assistant

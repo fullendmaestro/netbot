@@ -11,10 +11,10 @@ const api = {
     ipcRenderer.on('devices-updated', (_, devices) => callback(devices));
   },
   connectDevice: (device: DeviceConfig) => ipcRenderer.invoke('connect-device', device),
-  disconnectDevice: () => ipcRenderer.send('disconnect-device'),
-  sendTerminalInput: (data: string) => ipcRenderer.send('terminal-input', data),
-  onTerminalData: (callback: (data: string) => void) => {
-    ipcRenderer.on('terminal-data', (_, data) => callback(data));
+  disconnectDevice: (sessionId: string) => ipcRenderer.send('disconnect-device', sessionId),
+  sendTerminalInput: (sessionId: string, data: string) => ipcRenderer.send('terminal-input', { sessionId, data }),
+  onTerminalData: (callback: (payload: { sessionId: string, data: string }) => void) => {
+    ipcRenderer.on('terminal-data', (_, payload) => callback(payload));
   },
   onDeviceStatus: (callback: (update: { id: string, status: string }) => void) => {
     ipcRenderer.on('device-status', (_, update) => callback(update));

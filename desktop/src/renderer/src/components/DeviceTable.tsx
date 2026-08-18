@@ -195,9 +195,9 @@ const columns = columnHelper.columns([
           }
         />
         <DropdownMenuContent align="end" className="w-40">
-          <DropdownMenuItem onClick={() => {
-            (window as any).api.connectDevice(row.original);
-            window.dispatchEvent(new CustomEvent('open-terminal'));
+          <DropdownMenuItem onClick={async () => {
+            const sessionId = await (window as any).api.connectDevice(row.original);
+            window.dispatchEvent(new CustomEvent('open-terminal-tab', { detail: { sessionId, device: row.original } }));
           }}>
             <TerminalSquareIcon className="size-4 mr-2" />
             Open Terminal

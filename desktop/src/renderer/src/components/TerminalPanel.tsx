@@ -2,7 +2,12 @@ import { useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 
-export function TerminalPanel() {
+interface TerminalPanelProps {
+  sessionId: string;
+  visible: boolean;
+}
+
+export function TerminalPanel({ sessionId, visible }: TerminalPanelProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
 
@@ -13,7 +18,7 @@ export function TerminalPanel() {
     const term = new Terminal({
       cursorBlink: true,
       theme: {
-        background: '#09090b', // dark background to match shadcn
+        background: '#18181b', // dark background to match shadcn
       }
     });
 
@@ -21,13 +26,15 @@ export function TerminalPanel() {
     term.open(terminalRef.current);
 
     // Listen to data from main process
-    (window as any).api.onTerminalData((data: string) => {
-      term.write(data);
+    (window as any).api.onTerminalData((payload: { sessionId: string, data: string }) => {
+      if (payload.sessionId === sessionId) {
+        term.write(payload.data);
+      }
     });
 
     // Send input to main process
     term.onData((data) => {
-      (window as any).api.sendTerminalInput(data);
+      (window as any).api.sendTerminalInput(sessionId, data);
     });
 
     // Handle resize (basic approach, better with xterm-addon-fit)
@@ -41,10 +48,10 @@ export function TerminalPanel() {
       term.dispose();
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, [sessionId]);
 
   return (
-    <div className="w-full h-full p-2 bg-[#09090b] text-white">
+    <div className={`w-full h-full p-2 bg-[#09090b] text-white ${visible ? 'block' : 'hidden'}`}>
       <div className="w-full h-full overflow-hidden" ref={terminalRef}></div>
     </div>
   );

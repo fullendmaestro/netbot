@@ -81,15 +81,15 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('connect-device', async (_, device: DeviceConfig) => {
-    await sessionManager.connect(device);
+    return await sessionManager.connect(device);
   });
 
-  ipcMain.on('disconnect-device', () => {
-    sessionManager.disconnect();
+  ipcMain.on('disconnect-device', (_, sessionId: string) => {
+    sessionManager.disconnect(sessionId);
   });
 
-  ipcMain.on('terminal-input', (_, data: string) => {
-    sessionManager.sendInput(data);
+  ipcMain.on('terminal-input', (_, { sessionId, data }: { sessionId: string, data: string }) => {
+    sessionManager.sendInput(sessionId, data);
   });
 
   ipcMain.handle('get-serial-ports', async () => {

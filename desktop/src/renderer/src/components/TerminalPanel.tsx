@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 
 interface TerminalPanelProps {
@@ -40,8 +41,20 @@ export function TerminalPanel({ sessionId, visible }: TerminalPanelProps) {
       }
     });
 
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+
     xtermRef.current = term;
     term.open(terminalRef.current);
+    
+    // Fit immediately after opening
+    fitAddon.fit();
+
+    // Re-fit on container resize
+    const resizeObserver = new ResizeObserver(() => {
+      fitAddon.fit();
+    });
+    resizeObserver.observe(terminalRef.current);
 
     // 2. Watch for theme changes (.dark class added/removed on html tag)
     const observer = new MutationObserver(() => {
@@ -74,6 +87,7 @@ export function TerminalPanel({ sessionId, visible }: TerminalPanelProps) {
     setTimeout(() => term.refresh(0, term.rows - 1), 50);
 
     return () => {
+      resizeObserver.disconnect();
       observer.disconnect();
       dataDisposable.dispose();
       if (typeof removeListener === "function") removeListener();

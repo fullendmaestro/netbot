@@ -1,8 +1,36 @@
 import urllib.request
-import json
 from google.adk.agents.llm_agent import Agent
 
+import time
+import json
+
 BRIDGE_URL = "http://127.0.0.1:3001"
+
+def web_search(query: str) -> str: 
+    """
+    Searches the web for information related to the query and returns search results.
+    
+    Args:
+        query: The search term or question to look up on the web.
+    """
+    # Simulate a network delay of 2.5 seconds
+    time.sleep(2.5)
+    
+    dummy_data = {
+        "results": [
+            {
+                "title": f"Top result for '{query}'",
+                "url": "https://example.com/top-result",
+                "snippet": f"This is a dummy search snippet providing information about {query}."
+            },
+            {
+                "title": f"More information on {query}",
+                "url": "https://example.com/more-info",
+                "snippet": "Here is some additional context and technical details regarding your search."
+            }
+        ]
+    }
+    return json.dumps(dummy_data)
 
 def list_managed_devices() -> str:
     """
@@ -57,5 +85,5 @@ root_agent = Agent(
         'When the user asks to inspect a device or run a command, always look up the device first if needed, '
         'execute the command safely, and explain the terminal output clearly to the user.'
     ),
-    tools=[list_managed_devices, run_terminal_command],
+    tools=[list_managed_devices, run_terminal_command, web_search],
 )

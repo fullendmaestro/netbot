@@ -5,6 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import { DeviceDatabase } from './db'
 import { SessionManager } from './session-manager'
 import type { DeviceConfig } from '../shared/types'
+import { startBridgeServer } from './bridge-server'
 
 let db: DeviceDatabase;
 let sessionManager: SessionManager;
@@ -45,26 +46,16 @@ function createWindow(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
-
   db = new DeviceDatabase()
-
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
-  })
-
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
-
+  
   createWindow()
-
-  // Setup IPC handlers
+  
   const mainWindow = BrowserWindow.getAllWindows()[0];
   sessionManager = new SessionManager(mainWindow);
+
+  // Start internal API bridge for ADK Agent
+  startBridgeServer(db, sessionManager, 3001);
 
   ipcMain.handle('get-devices', () => {
     return db.getDevices();

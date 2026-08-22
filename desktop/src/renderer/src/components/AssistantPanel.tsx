@@ -1,21 +1,26 @@
-"use client";
+'use client'
 
-import { PanelRightClose, History, SquarePen, MoreHorizontal } from "lucide-react";
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useAdkRuntime, createAdkStream, createAdkSessionAdapter } from "@assistant-ui/react-google-adk";
-import { Thread } from "./assistant-ui/thread";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
+import { PanelRightClose, History, SquarePen, MoreHorizontal } from 'lucide-react'
+import { AssistantRuntimeProvider, AuiConfig, Tools } from '@assistant-ui/react'
+import {
+  useAdkRuntime,
+  createAdkStream,
+  createAdkSessionAdapter
+} from '@assistant-ui/react-google-adk'
+import { Thread } from './assistant-ui/thread'
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
+import { Button } from './ui/button'
+import { toolkit } from './tools/toolkit'
 
-const ADK_URL = "http://localhost:8000";
-const APP_NAME = "copilot";
-const USER_ID = "user_1";
+const ADK_URL = 'http://localhost:8000'
+const APP_NAME = 'copilot'
+const USER_ID = 'user_1'
 
 const { adapter, load } = createAdkSessionAdapter({
   apiUrl: ADK_URL,
   appName: APP_NAME,
-  userId: USER_ID,
-});
+  userId: USER_ID
+})
 
 export function AssistantPanel() {
   const runtime = useAdkRuntime({
@@ -25,8 +30,10 @@ export function AssistantPanel() {
       userId: USER_ID
     }),
     sessionAdapter: adapter,
-    load,
-  });
+    load
+  })
+
+  const config = AuiConfig({ tools: Tools({ toolkit }) })
 
   return (
     <Card className="shrink-0 flex flex-col rounded-xl overflow-hidden border gap-0 p-0 h-[calc(100svh-1rem)]">
@@ -50,10 +57,10 @@ export function AssistantPanel() {
         </div>
       </CardHeader>
       <CardContent className="flex-1 p-0 overflow-hidden [&_>_div]:h-full rounded-b-xl">
-        <AssistantRuntimeProvider runtime={runtime}>
+        <AssistantRuntimeProvider runtime={runtime} config={config}>
           <Thread />
         </AssistantRuntimeProvider>
       </CardContent>
     </Card>
-  );
+  )
 }

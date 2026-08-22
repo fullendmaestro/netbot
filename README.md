@@ -10,3 +10,8 @@ ssh
 ```
 
 Add a device with ip address 127.0.0.1
+
+uv run adk web . --allow_origins="http://localhost:5173"
+
+### Notes:
+bun-serialport

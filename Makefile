@@ -1,3 +1,5 @@
+PORT ?= 8000
+
 install:
 	@command -v uv >/dev/null 2>&1 || { echo "uv is not installed. Installing uv..."; curl -LsSf https://astral.sh/uv/install.sh | sh; source $$HOME/.local/bin/env; }
 	cd agent && uv sync
@@ -7,7 +9,7 @@ dev:
 	bunx concurrently "make dev-backend" "make dev-frontend"
 
 dev-backend:
-	cd agent && uv run adk web . --allow_origins="*"
+	cd agent && uv run uvicorn main:app --host 0.0.0.0 --port $(PORT)
 
 dev-frontend:
 	cd desktop && bun run dev

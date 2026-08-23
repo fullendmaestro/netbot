@@ -2,12 +2,9 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { DeviceDatabase } from './db'
 import { SessionManager } from './session-manager'
-import type { DeviceConfig } from '../shared/types'
 import { startBridgeServer } from './bridge-server'
 
-let db: DeviceDatabase;
 let sessionManager: SessionManager;
 
 function createWindow(): void {
@@ -47,7 +44,6 @@ function createWindow(): void {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.electron')
-  db = new DeviceDatabase()
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -55,30 +51,16 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
-  
+
   createWindow()
-  
+
   const mainWindow = BrowserWindow.getAllWindows()[0];
   sessionManager = new SessionManager(mainWindow);
 
-  // Start internal API bridge for ADK Agent
-  startBridgeServer(db, sessionManager, 3001);
+  // Start internal API bridge for ADK Agent (execute-command only)
+  startBridgeServer(sessionManager, 3001);
 
-  ipcMain.handle('get-devices', () => {
-    return db.getDevices();
-  });
-
-  ipcMain.on('add-device', (_, device: DeviceConfig) => {
-    db.addDevice(device);
-    mainWindow.webContents.send('devices-updated', db.getDevices());
-  });
-
-  ipcMain.on('remove-device', (_, id: string) => {
-    db.removeDevice(id);
-    mainWindow.webContents.send('devices-updated', db.getDevices());
-  });
-
-  ipcMain.handle('connect-device', async (_, device: DeviceConfig) => {
+  ipcMain.handle('connect-device', async (_, device) => {
     return await sessionManager.connect(device);
   });
 

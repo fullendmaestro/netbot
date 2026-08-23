@@ -1,8 +1,22 @@
 import http from 'node:http';
-import { DeviceDatabase } from './db';
 import { SessionManager } from './session-manager';
 
-export function startBridgeServer(db: DeviceDatabase, sessionManager: SessionManager, port = 3001) {
+const AGENT_API_URL = 'http://127.0.0.1:8080';
+
+async function fetchDevicesFromAgent(): Promise<any[]> {
+  return new Promise((resolve, reject) => {
+    http.get(`${AGENT_API_URL}/api/devices`, (res) => {
+      let body = '';
+      res.on('data', (chunk) => (body += chunk));
+      res.on('end', () => {
+        try { resolve(JSON.parse(body)); }
+        catch (e) { reject(e); }
+      });
+    }).on('error', reject);
+  });
+}
+
+export function startBridgeServer(sessionManager: SessionManager, port = 3001) {
   const server = http.createServer(async (req, res) => {
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,39 +31,22 @@ export function startBridgeServer(db: DeviceDatabase, sessionManager: SessionMan
 
     const url = new URL(req.url || '/', `http://localhost:${port}`);
 
-    // GET /api/devices
-    if (req.method === 'GET' && url.pathname === '/api/devices') {
-      const devices = db.getDevices();
-      const activeSessions = sessionManager.getActiveSessions();
-      const payload = devices.map((dev) => ({
-        ...dev,
-        connected: activeSessions.some((s) => s.deviceId === dev.id),
-      }));
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(payload));
-      return;
-    }
-
     // POST helper
-    const readJsonBody = async (): Promise<any> => {
-      return new Promise((resolve, reject) => {
+    const readJsonBody = async (): Promise<any> =>
+      new Promise((resolve, reject) => {
         let body = '';
         req.on('data', (chunk) => (body += chunk));
         req.on('end', () => {
-          try {
-            resolve(body ? JSON.parse(body) : {});
-          } catch (e) {
-            reject(e);
-          }
+          try { resolve(body ? JSON.parse(body) : {}); }
+          catch (e) { reject(e); }
         });
       });
-    };
 
-    // POST /api/execute-command
+    // POST /api/execute-command — sessions live in Electron, devices stored in agent
     if (req.method === 'POST' && url.pathname === '/api/execute-command') {
       try {
         const { deviceId, deviceName, command, timeoutMs } = await readJsonBody();
-        const devices = db.getDevices();
+        const devices = await fetchDevicesFromAgent();
 
         const target = devices.find(
           (d) => d.id === deviceId || (deviceName && d.name.toLowerCase() === deviceName.toLowerCase())

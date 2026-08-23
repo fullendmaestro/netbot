@@ -2,21 +2,33 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { DeviceConfig } from '../shared/types'
 
+const AGENT_API = 'http://localhost:8080'
+
 // Custom APIs for renderer
 const api = {
-  getDevices: () => ipcRenderer.invoke('get-devices'),
-  addDevice: (device: DeviceConfig) => ipcRenderer.send('add-device', device),
-  removeDevice: (id: string) => ipcRenderer.send('remove-device', id),
-  onDevicesUpdated: (callback: (devices: DeviceConfig[]) => void) => {
-    ipcRenderer.on('devices-updated', (_, devices) => callback(devices));
-  },
+  // ── Device CRUD — served by the Python agent API ──────────────────────────
+  getDevices: (): Promise<DeviceConfig[]> =>
+    fetch(`${AGENT_API}/api/devices`).then((r) => r.json()),
+
+  addDevice: (device: DeviceConfig): Promise<{ id: string }> =>
+    fetch(`${AGENT_API}/api/devices`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(device),
+    }).then((r) => r.json()),
+
+  removeDevice: (id: string): Promise<void> =>
+    fetch(`${AGENT_API}/api/devices/${id}`, { method: 'DELETE' }).then(() => undefined),
+
+  // ── Terminal / sessions — handled by Electron main process ────────────────
   connectDevice: (device: DeviceConfig) => ipcRenderer.invoke('connect-device', device),
   disconnectDevice: (sessionId: string) => ipcRenderer.send('disconnect-device', sessionId),
-  sendTerminalInput: (sessionId: string, data: string) => ipcRenderer.send('terminal-input', { sessionId, data }),
-  onTerminalData: (callback: (payload: { sessionId: string, data: string }) => void) => {
+  sendTerminalInput: (sessionId: string, data: string) =>
+    ipcRenderer.send('terminal-input', { sessionId, data }),
+  onTerminalData: (callback: (payload: { sessionId: string; data: string }) => void) => {
     ipcRenderer.on('terminal-data', (_, payload) => callback(payload));
   },
-  onDeviceStatus: (callback: (update: { id: string, status: string }) => void) => {
+  onDeviceStatus: (callback: (update: { id: string; status: string }) => void) => {
     ipcRenderer.on('device-status', (_, update) => callback(update));
   },
   getSerialPorts: () => ipcRenderer.invoke('get-serial-ports'),

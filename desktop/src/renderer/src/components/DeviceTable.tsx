@@ -113,7 +113,8 @@ function DragHandle({ id }: { id: string }) {
   )
 }
 
-const columns = columnHelper.columns([
+function makeColumns(refreshDevices: () => void) {
+  return columnHelper.columns([
   columnHelper.display({
     id: "drag",
     header: () => null,
@@ -209,7 +210,7 @@ const columns = columnHelper.columns([
             Disconnect
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onClick={() => (window as any).api.removeDevice(row.original.id)}>
+          <DropdownMenuItem variant="destructive" onClick={async () => { await (window as any).api.removeDevice(row.original.id); refreshDevices(); }}>
             Remove
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -217,6 +218,7 @@ const columns = columnHelper.columns([
     ),
   }),
 ])
+}
 
 function DraggableRow({
   row,
@@ -279,21 +281,28 @@ export function DeviceTable() {
     [data]
   )
 
-  React.useEffect(() => {
-    // Load initial devices
+  const refreshDevices = React.useCallback(() => {
     (window as any).api.getDevices().then(setData);
+  }, []);
 
-    // Listen for updates
-    (window as any).api.onDevicesUpdated((devices: DeviceConfig[]) => {
-      setData(devices);
-    });
+  const columns = React.useMemo(() => makeColumns(refreshDevices), [refreshDevices]);
 
+  React.useEffect(() => {
+    // Load initial devices from agent API
+    refreshDevices();
+
+    // Poll agent API every 3s for changes
+    const interval = setInterval(refreshDevices, 3000);
+
+    // Live connection status updates still come via IPC
     (window as any).api.onDeviceStatus((update: { id: string, status: string }) => {
       setData(prev => prev.map(d => d.id === update.id ? { ...d, connectionStatus: update.status as any } : d));
     });
-  }, []);
 
-  const handleAddDevice = () => {
+    return () => clearInterval(interval);
+  }, [refreshDevices]);
+
+  const handleAddDevice = async () => {
     const newDevice: DeviceConfig = {
       id: crypto.randomUUID(),
       name: deviceName || (addTab === 'ssh' ? sshHost : serialPath),
@@ -310,10 +319,11 @@ export function DeviceTable() {
         baudRate: parseInt(serialBaud, 10)
       })
     };
-    (window as any).api.addDevice(newDevice);
+    await (window as any).api.addDevice(newDevice);
     setIsAddOpen(false);
     // reset form
     setDeviceName(""); setSshHost(""); setSshUser(""); setSshPass(""); setSerialPath("");
+    refreshDevices();
   };
 
   const handleFetchPorts = async () => {

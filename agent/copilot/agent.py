@@ -4,6 +4,7 @@ from google.adk.agents.llm_agent import Agent
 import time
 import json
 
+AGENT_API_URL = "http://127.0.0.1:8080"
 BRIDGE_URL = "http://127.0.0.1:3001"
 
 def web_search(query: str) -> str: 
@@ -38,7 +39,7 @@ def list_managed_devices() -> str:
     their IDs, connection types, and active connection statuses.
     """
     try:
-        req = urllib.request.Request(f"{BRIDGE_URL}/api/devices", method="GET")
+        req = urllib.request.Request(f"{AGENT_API_URL}/api/devices", method="GET")
         with urllib.request.urlopen(req, timeout=5) as response:
             data = json.loads(response.read().decode())
             return json.dumps(data, indent=2)

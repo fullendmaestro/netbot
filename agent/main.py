@@ -24,7 +24,10 @@ app: FastAPI = get_fast_api_app(
 )
 
 from api.hello import router as hello_router
+from api.devices import router as devices_router
+
 app.include_router(hello_router)
+app.include_router(devices_router)
 
 if __name__ == "__main__":
     # Use the PORT environment variable provided by Cloud Run, defaulting to 8080

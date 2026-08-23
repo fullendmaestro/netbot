@@ -10,4 +10,6 @@ dependencies = [
     "google-adk>=2.7.0",
     "google-antigravity>=0.1.10",
     "python-dotenv>=1.2.2",
+    "sqlalchemy>=2.0.52",
+    "uvicorn>=0.52.2",
 ]

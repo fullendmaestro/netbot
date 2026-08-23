@@ -1,6 +1,7 @@
 'use client'
 
-import { PanelRightClose, History, SquarePen, MoreHorizontal } from 'lucide-react'
+import { useState } from 'react'
+import { X, History, MoreHorizontal } from 'lucide-react'
 import { AssistantRuntimeProvider, AuiConfig, Tools } from '@assistant-ui/react'
 import {
   useAdkRuntime,
@@ -11,7 +12,7 @@ import { Thread } from './assistant-ui/thread'
 import { ThreadList } from './assistant-ui/thread-list'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
+import { CommandDialog } from './ui/command'
 import { toolkit } from './tools/toolkit'
 
 const ADK_URL = 'http://localhost:8000'
@@ -25,6 +26,7 @@ const { adapter, load } = createAdkSessionAdapter({
 })
 
 export function AssistantPanel() {
+  const [historyOpen, setHistoryOpen] = useState(false)
   const runtime = useAdkRuntime({
     stream: createAdkStream({
       api: ADK_URL,
@@ -45,24 +47,17 @@ export function AssistantPanel() {
             Netbot Assistant
           </CardTitle>
           <div className="flex items-center gap-0.5">
-            <Button variant="ghost" size="icon-sm">
-              <SquarePen className="size-4" />
+            <Button variant="ghost" size="icon-sm" onClick={() => setHistoryOpen(true)}>
+              <History className="size-4" />
             </Button>
-            <Popover>
-              <PopoverTrigger>
-                <Button variant="ghost" size="icon-sm">
-                  <History className="size-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-80 p-0 h-[500px] flex flex-col overflow-hidden">
-                <ThreadList />
-              </PopoverContent>
-            </Popover>
+            <CommandDialog open={historyOpen} onOpenChange={setHistoryOpen} className="flex flex-col">
+              <ThreadList />
+            </CommandDialog>
             <Button variant="ghost" size="icon-sm">
               <MoreHorizontal className="size-4" />
             </Button>
             <Button variant="ghost" size="icon-sm">
-              <PanelRightClose className="size-4" />
+              <X className="size-4" />
             </Button>
           </div>
         </CardHeader>

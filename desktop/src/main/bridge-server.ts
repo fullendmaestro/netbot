@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { SessionManager } from './session-manager';
 
-const AGENT_API_URL = 'http://127.0.0.1:8080';
+const AGENT_API_URL = 'http://127.0.0.1:8000';
 
 async function fetchDevicesFromAgent(): Promise<any[]> {
   return new Promise((resolve, reject) => {

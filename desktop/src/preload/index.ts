@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { DeviceConfig } from '../shared/types'
 
-const AGENT_API = 'http://localhost:8080'
+const AGENT_API = 'http://localhost:8000'
 
 // Custom APIs for renderer
 const api = {

@@ -3,9 +3,24 @@ from google.adk.agents.llm_agent import Agent
 
 import time
 import json
+import sqlite3
+from pathlib import Path
 
-AGENT_API_URL = "http://127.0.0.1:8080"
 BRIDGE_URL = "http://127.0.0.1:3001"
+DB_PATH = Path(__file__).parent.parent / "devices.db"
+
+
+def _get_devices_from_db() -> list:
+    """Read devices directly from the SQLite DB — avoids HTTP self-call deadlock."""
+    if not DB_PATH.exists():
+        return []
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute("SELECT * FROM devices").fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
 
 def web_search(query: str) -> str: 
     """
@@ -39,10 +54,8 @@ def list_managed_devices() -> str:
     their IDs, connection types, and active connection statuses.
     """
     try:
-        req = urllib.request.Request(f"{AGENT_API_URL}/api/devices", method="GET")
-        with urllib.request.urlopen(req, timeout=5) as response:
-            data = json.loads(response.read().decode())
-            return json.dumps(data, indent=2)
+        devices = _get_devices_from_db()
+        return json.dumps(devices, indent=2)
     except Exception as e:
         return f"Error fetching devices: {str(e)}"
 

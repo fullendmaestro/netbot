@@ -1,4 +1,4 @@
-import * as React from "react"
+import * as React from 'react'
 import {
   closestCenter,
   DndContext,
@@ -8,16 +8,16 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-  type UniqueIdentifier,
-} from "@dnd-kit/core"
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
+  type UniqueIdentifier
+} from '@dnd-kit/core'
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import {
   arrayMove,
   SortableContext,
   useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import {
   columnFilteringFeature,
   columnVisibilityFeature,
@@ -34,20 +34,20 @@ import {
   type ColumnFiltersState,
   type ColumnVisibilityState,
   type Row,
-  type SortingState,
-} from "@tanstack/react-table"
+  type SortingState
+} from '@tanstack/react-table'
 
-import { Badge } from "./ui/badge"
-import { Button } from "./ui/button"
-import { Checkbox } from "./ui/checkbox"
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
+import { Checkbox } from './ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu"
+  DropdownMenuTrigger
+} from './ui/dropdown-menu'
 import {
   Dialog,
   DialogContent,
@@ -55,31 +55,37 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-} from "./ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
-import { Input } from "./ui/input"
+  DialogTrigger
+} from './ui/dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
+import { Input } from './ui/input'
 
-import { Label } from "./ui/label"
+import { Label } from './ui/label'
 import {
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "./ui/select"
+  SelectValue
+} from './ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "./ui/table"
-import { GripVerticalIcon, CircleCheckIcon, LoaderIcon, EllipsisVerticalIcon, Columns3Icon, ChevronDownIcon, PlusIcon, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, TerminalSquareIcon } from "lucide-react"
+  GripVerticalIcon,
+  CircleCheckIcon,
+  LoaderIcon,
+  EllipsisVerticalIcon,
+  Columns3Icon,
+  ChevronDownIcon,
+  PlusIcon,
+  ChevronsLeftIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronsRightIcon,
+  TerminalSquareIcon
+} from 'lucide-react'
 
-import type { DeviceConfig } from "../../../shared/types"
+import type { DeviceConfig } from '../../../shared/types'
 
 const features = tableFeatures({
   columnFilteringFeature,
@@ -89,13 +95,10 @@ const features = tableFeatures({
   rowSortingFeature,
   filteredRowModel: createFilteredRowModel(),
   paginatedRowModel: createPaginatedRowModel(),
-  sortedRowModel: createSortedRowModel(),
+  sortedRowModel: createSortedRowModel()
 })
 
-const columnHelper = createColumnHelper<
-  typeof features,
-  DeviceConfig
->()
+const columnHelper = createColumnHelper<typeof features, DeviceConfig>()
 
 function DragHandle({ id }: { id: string }) {
   const { attributes, listeners } = useSortable({ id })
@@ -113,130 +116,129 @@ function DragHandle({ id }: { id: string }) {
   )
 }
 
-function makeColumns(refreshDevices: () => void) {
+function makeColumns(onRemoveDevice: (id: string) => void) {
   return columnHelper.columns([
-  columnHelper.display({
-    id: "drag",
-    header: () => null,
-    cell: ({ row }) => <DragHandle id={row.original.id} />,
-  }),
-  columnHelper.display({
-    id: "select",
-    header: ({ table }) => (
-      <div className="flex items-center justify-center">
-        <Checkbox
-          checked={table.getIsAllPageRowsSelected()}
-          indeterminate={
-            table.getIsSomePageRowsSelected() &&
-            !table.getIsAllPageRowsSelected()
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      </div>
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center justify-center">
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      </div>
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  }),
-  columnHelper.accessor("name", {
-    header: "Name",
-    cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
-  }),
-  columnHelper.display({
-    id: "address",
-    header: "Address / Path",
-    cell: ({ row }) => <span className="font-mono text-sm">{row.original.type === 'ssh' ? row.original.host : row.original.path}</span>,
-  }),
-  columnHelper.accessor("type", {
-    header: "Type",
-    cell: ({ row }) => (
-      <Badge variant="outline" className="px-1.5 text-muted-foreground uppercase">
-        {row.original.type}
-      </Badge>
-    ),
-  }),
-  columnHelper.accessor("connectionStatus", {
-    header: "Connection",
-    cell: ({ row }) => (
-      <Badge variant="outline" className="px-1.5 text-muted-foreground">
-        {row.original.connectionStatus === "Connected" ? (
-          <CircleCheckIcon className="fill-green-500 dark:fill-green-400 size-4 mr-1" />
-        ) : row.original.connectionStatus === "Connecting" ? (
-          <LoaderIcon className="size-4 mr-1 animate-spin" />
-        ) : (
-          <CircleCheckIcon className="fill-gray-500 dark:fill-gray-600 size-4 mr-1" />
-        )}
-        {row.original.connectionStatus}
-      </Badge>
-    ),
-  }),
-  columnHelper.display({
-    id: "actions",
-    cell: ({ row }) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant="ghost"
-              className="flex size-8 text-muted-foreground"
-              size="icon"
+    columnHelper.display({
+      id: 'drag',
+      header: () => null,
+      cell: ({ row }) => <DragHandle id={row.original.id} />
+    }),
+    columnHelper.display({
+      id: 'select',
+      header: ({ table }) => (
+        <div className="flex items-center justify-center">
+          <Checkbox
+            checked={table.getIsAllPageRowsSelected()}
+            indeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
+            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+            aria-label="Select all"
+          />
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className="flex items-center justify-center">
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Select row"
+          />
+        </div>
+      ),
+      enableSorting: false,
+      enableHiding: false
+    }),
+    columnHelper.accessor('name', {
+      header: 'Name',
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>
+    }),
+    columnHelper.display({
+      id: 'address',
+      header: 'Address / Path',
+      cell: ({ row }) => (
+        <span className="font-mono text-sm">
+          {row.original.type === 'ssh' ? row.original.host : row.original.path}
+        </span>
+      )
+    }),
+    columnHelper.accessor('type', {
+      header: 'Type',
+      cell: ({ row }) => (
+        <Badge variant="outline" className="px-1.5 text-muted-foreground uppercase">
+          {row.original.type}
+        </Badge>
+      )
+    }),
+    columnHelper.accessor('connectionStatus', {
+      header: 'Connection',
+      cell: ({ row }) => (
+        <Badge variant="outline" className="px-1.5 text-muted-foreground">
+          {row.original.connectionStatus === 'Connected' ? (
+            <CircleCheckIcon className="fill-green-500 dark:fill-green-400 size-4 mr-1" />
+          ) : row.original.connectionStatus === 'Connecting' ? (
+            <LoaderIcon className="size-4 mr-1 animate-spin" />
+          ) : (
+            <CircleCheckIcon className="fill-gray-500 dark:fill-gray-600 size-4 mr-1" />
+          )}
+          {row.original.connectionStatus}
+        </Badge>
+      )
+    }),
+    columnHelper.display({
+      id: 'actions',
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button variant="ghost" className="flex size-8 text-muted-foreground" size="icon">
+                <EllipsisVerticalIcon className="size-4" />
+                <span className="sr-only">Open menu</span>
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem
+              onClick={async () => {
+                const sessionId = await (window as any).api.connectDevice(row.original)
+                window.dispatchEvent(
+                  new CustomEvent('open-terminal-tab', {
+                    detail: { sessionId, device: row.original }
+                  })
+                )
+              }}
             >
-              <EllipsisVerticalIcon className="size-4" />
-              <span className="sr-only">Open menu</span>
-            </Button>
-          }
-        />
-        <DropdownMenuContent align="end" className="w-40">
-          <DropdownMenuItem onClick={async () => {
-            const sessionId = await (window as any).api.connectDevice(row.original);
-            window.dispatchEvent(new CustomEvent('open-terminal-tab', { detail: { sessionId, device: row.original } }));
-          }}>
-            <TerminalSquareIcon className="size-4 mr-2" />
-            Open Terminal
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => (window as any).api.connectDevice(row.original)}>
-            Connect
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => (window as any).api.disconnectDevice()}>
-            Disconnect
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onClick={async () => { await (window as any).api.removeDevice(row.original.id); refreshDevices(); }}>
-            Remove
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ),
-  }),
-])
+              <TerminalSquareIcon className="size-4 mr-2" />
+              Open Terminal
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => (window as any).api.connectDevice(row.original)}>
+              Connect
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => (window as any).api.disconnectDevice()}>
+              Disconnect
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={() => onRemoveDevice(row.original.id)}>
+              Remove
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    })
+  ])
 }
 
-function DraggableRow({
-  row,
-}: {
-  row: Row<typeof features, DeviceConfig>
-}) {
+function DraggableRow({ row }: { row: Row<typeof features, DeviceConfig> }) {
   const { transform, transition, setNodeRef, isDragging } = useSortable({
-    id: row.original.id,
+    id: row.original.id
   })
   return (
     <TableRow
-      data-state={row.getIsSelected() && "selected"}
+      data-state={row.getIsSelected() && 'selected'}
       data-dragging={isDragging}
       ref={setNodeRef}
       className="relative z-0 data-[dragging=true]:z-10 data-[dragging=true]:opacity-80"
       style={{
         transform: CSS.Transform.toString(transform),
-        transition: transition,
+        transition: transition
       }}
     >
       {row.getVisibleCells().map((cell) => (
@@ -256,19 +258,19 @@ export function DeviceTable() {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
-    pageSize: 10,
+    pageSize: 10
   })
 
   // Add Device form state
-  const [isAddOpen, setIsAddOpen] = React.useState(false);
-  const [deviceName, setDeviceName] = React.useState("");
-  const [sshHost, setSshHost] = React.useState("");
-  const [sshUser, setSshUser] = React.useState("");
-  const [sshPass, setSshPass] = React.useState("");
-  const [serialPath, setSerialPath] = React.useState("");
-  const [serialBaud, setSerialBaud] = React.useState("9600");
-  const [addTab, setAddTab] = React.useState("ssh");
-  const [serialPorts, setSerialPorts] = React.useState<any[]>([]);
+  const [isAddOpen, setIsAddOpen] = React.useState(false)
+  const [deviceName, setDeviceName] = React.useState('')
+  const [sshHost, setSshHost] = React.useState('')
+  const [sshUser, setSshUser] = React.useState('')
+  const [sshPass, setSshPass] = React.useState('')
+  const [serialPath, setSerialPath] = React.useState('')
+  const [serialBaud, setSerialBaud] = React.useState('9600')
+  const [addTab, setAddTab] = React.useState('ssh')
+  const [serialPorts, setSerialPorts] = React.useState<any[]>([])
 
   const sortableId = React.useId()
   const sensors = useSensors(
@@ -276,31 +278,31 @@ export function DeviceTable() {
     useSensor(TouchSensor, {}),
     useSensor(KeyboardSensor, {})
   )
-  const dataIds = React.useMemo<UniqueIdentifier[]>(
-    () => data?.map(({ id }) => id) || [],
-    [data]
-  )
+  const dataIds = React.useMemo<UniqueIdentifier[]>(() => data?.map(({ id }) => id) || [], [data])
 
-  const refreshDevices = React.useCallback(() => {
-    (window as any).api.getDevices().then(setData);
-  }, []);
+  const loadDevices = React.useCallback(async () => {
+    const devices = await (window as any).api.getDevices()
+    setData(devices)
+  }, [])
 
-  const columns = React.useMemo(() => makeColumns(refreshDevices), [refreshDevices]);
+  const handleRemoveDevice = React.useCallback(async (id: string) => {
+    const updatedDevices = await (window as any).api.removeDevice(id)
+    setData(updatedDevices)
+  }, [])
+
+  const columns = React.useMemo(() => makeColumns(handleRemoveDevice), [handleRemoveDevice])
 
   React.useEffect(() => {
-    // Load initial devices from agent API
-    refreshDevices();
+    // Load initial devices from local IPC store
+    loadDevices()
 
-    // Poll agent API every 3s for changes
-    const interval = setInterval(refreshDevices, 3000);
-
-    // Live connection status updates still come via IPC
-    (window as any).api.onDeviceStatus((update: { id: string, status: string }) => {
-      setData(prev => prev.map(d => d.id === update.id ? { ...d, connectionStatus: update.status as any } : d));
-    });
-
-    return () => clearInterval(interval);
-  }, [refreshDevices]);
+    // Listen to real-time connection status updates from IPC
+    ;(window as any).api.onDeviceStatus((update: { id: string; status: string }) => {
+      setData((prev) =>
+        prev.map((d) => (d.id === update.id ? { ...d, connectionStatus: update.status as any } : d))
+      )
+    })
+  }, [loadDevices])
 
   const handleAddDevice = async () => {
     const newDevice: DeviceConfig = {
@@ -308,31 +310,40 @@ export function DeviceTable() {
       name: deviceName || (addTab === 'ssh' ? sshHost : serialPath),
       type: addTab as 'ssh' | 'serial',
       connectionStatus: 'Offline',
-      ...(addTab === 'ssh' ? {
-        host: sshHost,
-        username: sshUser,
-        password: sshPass,
-        authType: 'password',
-        port: 22
-      } : {
-        path: serialPath,
-        baudRate: parseInt(serialBaud, 10)
-      })
-    };
-    await (window as any).api.addDevice(newDevice);
-    setIsAddOpen(false);
+      ...(addTab === 'ssh'
+        ? {
+            host: sshHost,
+            username: sshUser,
+            password: sshPass,
+            authType: 'password',
+            port: 22
+          }
+        : {
+            path: serialPath,
+            baudRate: parseInt(serialBaud, 10)
+          })
+    }
+
+    // Add device locally via IPC, returns updated array immediately
+    const updatedDevices = await (window as any).api.addDevice(newDevice)
+    setData(updatedDevices)
+
+    setIsAddOpen(false)
     // reset form
-    setDeviceName(""); setSshHost(""); setSshUser(""); setSshPass(""); setSerialPath("");
-    refreshDevices();
-  };
+    setDeviceName('')
+    setSshHost('')
+    setSshUser('')
+    setSshPass('')
+    setSerialPath('')
+  }
 
   const handleFetchPorts = async () => {
-    const ports = await (window as any).api.getSerialPorts();
-    setSerialPorts(ports);
+    const ports = await (window as any).api.getSerialPorts()
+    setSerialPorts(ports)
     if (ports.length > 0 && !serialPath) {
-      setSerialPath(ports[0].path);
+      setSerialPath(ports[0].path)
     }
-  };
+  }
 
   const table = useTable({
     features,
@@ -343,7 +354,7 @@ export function DeviceTable() {
       columnVisibility,
       rowSelection,
       columnFilters,
-      pagination,
+      pagination
     },
     getRowId: (row) => row.id.toString(),
     enableRowSelection: true,
@@ -351,7 +362,7 @@ export function DeviceTable() {
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    onPaginationChange: setPagination,
+    onPaginationChange: setPagination
   })
 
   function handleDragEnd(event: DragEndEvent) {
@@ -383,20 +394,14 @@ export function DeviceTable() {
             <DropdownMenuContent align="end" className="w-32">
               {table
                 .getAllColumns()
-                .filter(
-                  (column) =>
-                    typeof column.accessorFn !== "undefined" &&
-                    column.getCanHide()
-                )
+                .filter((column) => typeof column.accessorFn !== 'undefined' && column.getCanHide())
                 .map((column) => {
                   return (
                     <DropdownMenuCheckboxItem
                       key={column.id}
                       className="capitalize"
                       checked={column.getIsVisible()}
-                      onCheckedChange={(value) =>
-                        column.toggleVisibility(!!value)
-                      }
+                      onCheckedChange={(value) => column.toggleVisibility(!!value)}
                     >
                       {column.id}
                     </DropdownMenuCheckboxItem>
@@ -406,12 +411,14 @@ export function DeviceTable() {
           </DropdownMenu>
 
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger render={
-              <Button variant="outline" size="sm">
-                <PlusIcon className="mr-2 size-4" />
-                <span className="hidden lg:inline">Add Device</span>
-              </Button>
-            } />
+            <DialogTrigger
+              render={
+                <Button variant="outline" size="sm">
+                  <PlusIcon className="mr-2 size-4" />
+                  <span className="hidden lg:inline">Add Device</span>
+                </Button>
+              }
+            />
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>Add Device</DialogTitle>
@@ -427,40 +434,71 @@ export function DeviceTable() {
                 <div className="py-4 space-y-4">
                   <div className="space-y-1">
                     <Label htmlFor="name">Display Name (Optional)</Label>
-                    <Input id="name" value={deviceName} onChange={e => setDeviceName(e.target.value)} placeholder="My Router" />
+                    <Input
+                      id="name"
+                      value={deviceName}
+                      onChange={(e) => setDeviceName(e.target.value)}
+                      placeholder="My Router"
+                    />
                   </div>
-                  
+
                   <TabsContent value="ssh" className="space-y-4 mt-0">
                     <div className="space-y-1">
                       <Label htmlFor="host">Host / IP</Label>
-                      <Input id="host" value={sshHost} onChange={e => setSshHost(e.target.value)} placeholder="192.168.1.1" />
+                      <Input
+                        id="host"
+                        value={sshHost}
+                        onChange={(e) => setSshHost(e.target.value)}
+                        placeholder="192.168.1.1"
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor="user">Username</Label>
-                      <Input id="user" value={sshUser} onChange={e => setSshUser(e.target.value)} placeholder="admin" />
+                      <Input
+                        id="user"
+                        value={sshUser}
+                        onChange={(e) => setSshUser(e.target.value)}
+                        placeholder="admin"
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor="pass">Password</Label>
-                      <Input id="pass" type="password" value={sshPass} onChange={e => setSshPass(e.target.value)} />
+                      <Input
+                        id="pass"
+                        type="password"
+                        value={sshPass}
+                        onChange={(e) => setSshPass(e.target.value)}
+                      />
                     </div>
                   </TabsContent>
-                  
+
                   <TabsContent value="serial" className="space-y-4 mt-0">
                     <div className="space-y-1">
                       <Label htmlFor="path">Port / Path</Label>
                       <div className="flex gap-2">
-                        <Select value={serialPath} onValueChange={(val) => val && setSerialPath(val)}>
+                        <Select
+                          value={serialPath}
+                          onValueChange={(val) => val && setSerialPath(val)}
+                        >
                           <SelectTrigger className="flex-1">
                             <SelectValue placeholder="Select a port" />
                           </SelectTrigger>
                           <SelectContent>
-                            {serialPorts.length === 0 && <SelectItem value="none" disabled>No ports found</SelectItem>}
-                            {serialPorts.map(p => (
-                              <SelectItem key={p.path} value={p.path}>{p.path}</SelectItem>
+                            {serialPorts.length === 0 && (
+                              <SelectItem value="none" disabled>
+                                No ports found
+                              </SelectItem>
+                            )}
+                            {serialPorts.map((p) => (
+                              <SelectItem key={p.path} value={p.path}>
+                                {p.path}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                        <Button variant="outline" onClick={handleFetchPorts}>Refresh</Button>
+                        <Button variant="outline" onClick={handleFetchPorts}>
+                          Refresh
+                        </Button>
                       </div>
                     </div>
                     <div className="space-y-1">
@@ -482,12 +520,13 @@ export function DeviceTable() {
                 </div>
               </Tabs>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
+                <Button variant="outline" onClick={() => setIsAddOpen(false)}>
+                  Cancel
+                </Button>
                 <Button onClick={handleAddDevice}>Save Device</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
-
         </div>
       </div>
       <div className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6">
@@ -506,9 +545,7 @@ export function DeviceTable() {
                     {headerGroup.headers.map((header) => {
                       return (
                         <TableHead key={header.id} colSpan={header.colSpan}>
-                          {header.isPlaceholder ? null : (
-                            <FlexRender header={header} />
-                          )}
+                          {header.isPlaceholder ? null : <FlexRender header={header} />}
                         </TableHead>
                       )
                     })}
@@ -517,20 +554,14 @@ export function DeviceTable() {
               </TableHeader>
               <TableBody>
                 {table.getRowModel().rows?.length ? (
-                  <SortableContext
-                    items={dataIds}
-                    strategy={verticalListSortingStrategy}
-                  >
+                  <SortableContext items={dataIds} strategy={verticalListSortingStrategy}>
                     {table.getRowModel().rows.map((row) => (
                       <DraggableRow key={row.id} row={row} />
                     ))}
                   </SortableContext>
                 ) : (
                   <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
                       No devices found.
                     </TableCell>
                   </TableRow>
@@ -541,7 +572,7 @@ export function DeviceTable() {
         </div>
         <div className="flex items-center justify-between pb-6">
           <div className="hidden flex-1 text-sm text-muted-foreground lg:flex">
-            {table.getFilteredSelectedRowModel().rows.length} of{" "}
+            {table.getFilteredSelectedRowModel().rows.length} of{' '}
             {table.getFilteredRowModel().rows.length} row(s) selected.
           </div>
           <div className="flex w-full items-center gap-8 lg:w-fit">
@@ -570,8 +601,7 @@ export function DeviceTable() {
               </Select>
             </div>
             <div className="flex w-fit items-center justify-center text-sm font-medium">
-              Page {table.state.pagination.pageIndex + 1} of{" "}
-              {table.getPageCount()}
+              Page {table.state.pagination.pageIndex + 1} of {table.getPageCount()}
             </div>
             <div className="ml-auto flex items-center gap-2 lg:ml-0">
               <Button

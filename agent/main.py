@@ -1,21 +1,17 @@
 import os
-
+import asyncio
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from google.adk.cli.fast_api import get_fast_api_app
+from ws_manager import bridge_manager
+from api.hello import router as hello_router
+from api.devices import router as devices_router
 
-# Get the directory where main.py is located
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Example session service URI (e.g., SQLite)
-# Note: Use 'sqlite+aiosqlite' instead of 'sqlite' because DatabaseSessionService requires an async driver
 SESSION_SERVICE_URI = "sqlite+aiosqlite:///./sessions.db"
-# Example allowed origins for CORS
-ALLOWED_ORIGINS = ["http://localhost", "http://localhost:8080", "*"]
-# Set web=True if you intend to serve a web interface, False otherwise
+ALLOWED_ORIGINS = ["*"]
 SERVE_WEB_INTERFACE = True
 
-# Call the function to get the FastAPI app instance
-# Ensure the agent directory name ('capital_agent') matches your agent folder
 app: FastAPI = get_fast_api_app(
     agents_dir=AGENT_DIR,
     session_service_uri=SESSION_SERVICE_URI,
@@ -23,12 +19,26 @@ app: FastAPI = get_fast_api_app(
     web=SERVE_WEB_INTERFACE,
 )
 
-from api.hello import router as hello_router
-from api.devices import router as devices_router
-
+# Mount the HTTP APIs again so the Desktop App can hit /api/devices
 app.include_router(hello_router)
 app.include_router(devices_router)
 
+@app.on_event("startup")
+async def startup_event():
+    bridge_manager.set_loop(asyncio.get_running_loop())
+
+@app.websocket("/ws/bridge/{client_id}")
+async def websocket_bridge_endpoint(websocket: WebSocket, client_id: str):
+    await bridge_manager.connect(client_id, websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            bridge_manager.handle_message(client_id, data)
+    except WebSocketDisconnect:
+        bridge_manager.disconnect(client_id)
+    except Exception as e:
+        print(f"[WS Bridge] Error: {e}")
+        bridge_manager.disconnect(client_id)
+
 if __name__ == "__main__":
-    # Use the PORT environment variable provided by Cloud Run, defaulting to 8080
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))

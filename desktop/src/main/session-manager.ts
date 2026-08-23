@@ -157,19 +157,40 @@ export class SessionManager {
   /**
    * Sends a command into the active session and collects terminal output.
    */
-  async executeCommand(sessionId: string, command: string, timeoutMs = 4000): Promise<string> {
+  async executeCommand(sessionId: string, command: string, timeoutMs = 8000): Promise<string> {
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error(`No active session found for session ID: ${sessionId}`);
 
     return new Promise((resolve) => {
       let output = '';
       
-      // FIX: Use \r (Carriage Return) instead of \n to properly simulate the Enter key in PTY shells
       const cleanCommand = command.replace(/[\r\n]+$/, '');
-      const formattedCommand = `${cleanCommand}\r`;
+      // Use \r\n for Windows SSH & Cisco PTY compatibility
+      const formattedCommand = `${cleanCommand}\r\n`;
+
+      let inactivityTimer: NodeJS.Timeout | null = null;
+      let hardTimeoutTimer: NodeJS.Timeout | null = null;
+      let hasReceivedData = false;
+
+      const finish = () => {
+        if (inactivityTimer) clearTimeout(inactivityTimer);
+        if (hardTimeoutTimer) clearTimeout(hardTimeoutTimer);
+
+        if (session.type === 'ssh' && session.sshStream) {
+          session.sshStream.off('data', dataListener);
+        } else if (session.type === 'serial' && session.serialPort) {
+          session.serialPort.off('data', dataListener);
+        }
+        resolve(output.trim());
+      };
 
       const dataListener = (data: Buffer) => {
+        hasReceivedData = true;
         output += data.toString('utf-8');
+        
+        // Reset inactivity debounce: 600ms of silence after data arrives means output is complete
+        if (inactivityTimer) clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(finish, 600);
       };
 
       if (session.type === 'ssh' && session.sshStream) {
@@ -180,14 +201,15 @@ export class SessionManager {
         session.serialPort.write(formattedCommand);
       }
 
-      setTimeout(() => {
-        if (session.type === 'ssh' && session.sshStream) {
-          session.sshStream.off('data', dataListener);
-        } else if (session.type === 'serial' && session.serialPort) {
-          session.serialPort.off('data', dataListener);
+      // Initial silence timer: wait up to 4s for first byte before giving up
+      inactivityTimer = setTimeout(() => {
+        if (!hasReceivedData) {
+          finish();
         }
-        resolve(output.trim());
-      }, timeoutMs);
+      }, 4000);
+
+      // Hard safety timeout
+      hardTimeoutTimer = setTimeout(finish, timeoutMs);
     });
   }
 

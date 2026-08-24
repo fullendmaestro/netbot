@@ -1,11 +1,11 @@
 'use generative'
 
 import { defineToolkit } from '@assistant-ui/react'
-import { WebSearchToolUI } from './Websearch'
+import { RunTerminalCommandUI } from './RunTerminalCommand'
 
 export const toolkit = defineToolkit({
-  web_search: {
+  run_terminal_command: {
     type: 'backend',
-    render: WebSearchToolUI
+    render: RunTerminalCommandUI
   }
 })

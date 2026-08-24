@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { ToolCallMessagePartComponent } from '@assistant-ui/react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { TerminalSquare, Loader2 } from 'lucide-react'
+import { TerminalSquare, Loader2, ExternalLink } from 'lucide-react'
 import '@xterm/xterm/css/xterm.css'
 
 export const RunTerminalCommandUI: ToolCallMessagePartComponent<{ device_identifier: string, command: string }, any> = ({
@@ -94,6 +94,20 @@ export const RunTerminalCommandUI: ToolCallMessagePartComponent<{ device_identif
          {status.type === 'complete' && (
            <span className="ml-auto text-green-500">Completed</span>
          )}
+         <button 
+           onClick={async () => {
+             const result = await (window as any).api.revealAgentSession(args.device_identifier);
+             if (result) {
+               window.dispatchEvent(new CustomEvent('open-terminal-tab', {
+                 detail: { sessionId: result.sessionId, device: result.deviceConfig }
+               }));
+             }
+           }}
+           className="ml-2 p-1 hover:bg-accent rounded-sm transition-colors text-muted-foreground hover:text-foreground"
+           title="Attach to Main Terminal Panel"
+         >
+           <ExternalLink className="size-3.5" />
+         </button>
        </div>
        <div className="bg-[#1e1e1e] p-2">
          <div ref={terminalRef} className="overflow-hidden w-full h-[250px]" />

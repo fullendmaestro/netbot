@@ -64,13 +64,10 @@ export class AgentRelayClient {
         throw new Error(`Device '${deviceIdentifier}' not found on local machine.`);
       }
 
-      let active = this.sessionManager.getSessionByDeviceId(target.id);
-      let sessionId = active?.sessionId;
-      if (!sessionId) {
-        sessionId = await this.sessionManager.connect(target);
-      }
+      const agentSession = await this.sessionManager.getOrSpawnAgentSession(target);
+      
+      const output = await this.sessionManager.executeCommand(agentSession.sessionId, command, timeoutMs || 3500);
 
-      const output = await this.sessionManager.executeCommand(sessionId, command, timeoutMs || 3500);
 
       this.ws?.send(
         JSON.stringify({

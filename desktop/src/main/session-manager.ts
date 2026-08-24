@@ -4,9 +4,13 @@ import { BrowserWindow } from 'electron';
 import type { DeviceConfig } from '../shared/types';
 import { randomUUID } from 'crypto';
 
-interface Session {
+export interface Session {
+  sessionId: string;
   type: 'ssh' | 'serial';
   deviceId: string;
+  isHidden: boolean;
+  isBusy: boolean;
+  deviceConfig: DeviceConfig;
   sshClient?: Client;
   sshStream?: any;
   serialPort?: SerialPort;
@@ -24,79 +28,105 @@ export class SessionManager {
     this.window = window;
   }
 
-  getActiveSessions(): { sessionId: string; deviceId: string; type: string }[] {
+  getActiveSessions(): { sessionId: string; deviceId: string; type: string; isHidden: boolean }[] {
     return Array.from(this.sessions.entries()).map(([sessionId, session]) => ({
       sessionId,
       deviceId: session.deviceId,
       type: session.type,
+      isHidden: session.isHidden,
     }));
   }
 
-  getSessionByDeviceId(deviceId: string): { sessionId: string; session: Session } | undefined {
-    for (const [sessionId, session] of this.sessions.entries()) {
-      if (session.deviceId === deviceId) {
-        return { sessionId, session };
-      }
-    }
-    return undefined;
+  // Gets the single serial session for a device (if any)
+  getSerialSession(deviceId: string): Session | undefined {
+    return Array.from(this.sessions.values()).find(s => s.deviceId === deviceId && s.type === 'serial');
   }
 
+  // Used to connect a standard FOREGROUND session (from UI)
   async connect(device: DeviceConfig): Promise<string> {
-    const existing = this.getSessionByDeviceId(device.id);
-    if (existing) return existing.sessionId;
+    if (device.type === 'serial') {
+      const existing = this.getSerialSession(device.id);
+      if (existing) {
+        // If it was hidden, reveal it
+        existing.isHidden = false;
+        return existing.sessionId;
+      }
+    }
 
     const sessionId = randomUUID();
     if (device.type === 'ssh') {
-      await this.connectSSH(sessionId, device);
+      await this.connectSSH(sessionId, device, false);
     } else if (device.type === 'serial') {
-      await this.connectSerial(sessionId, device);
+      await this.connectSerial(sessionId, device, false);
     }
     return sessionId;
   }
 
-  private connectSSH(sessionId: string, device: DeviceConfig): Promise<void> {
+  // Connects a session explicitly (can be hidden)
+  private connectSSH(sessionId: string, device: DeviceConfig, isHidden: boolean): Promise<void> {
     return new Promise((resolve, reject) => {
       const sshClient = new Client();
-      this.sessions.set(sessionId, { type: 'ssh', deviceId: device.id, sshClient });
+      const session: Session = {
+        sessionId,
+        type: 'ssh',
+        deviceId: device.id,
+        isHidden,
+        isBusy: false,
+        deviceConfig: device,
+        sshClient
+      };
+      this.sessions.set(sessionId, session);
 
       sshClient
         .on('ready', () => {
-          this.window?.webContents.send('device-status', { id: device.id, status: 'Connected' });
+          if (!isHidden) {
+            this.window?.webContents.send('device-status', { id: device.id, status: 'Connected' });
+          }
+          
           sshClient.shell((err, stream) => {
             if (err) {
-              this.window?.webContents.send('terminal-data', {
-                sessionId,
-                data: `\r\n*** SSH Shell Error: ${err.message} ***\r\n`,
-              });
+              if (!isHidden) {
+                this.window?.webContents.send('terminal-data', {
+                  sessionId,
+                  data: `\r\n*** SSH Shell Error: ${err.message} ***\r\n`,
+                });
+              }
               return reject(err);
             }
-            const session = this.sessions.get(sessionId);
-            if (session) session.sshStream = stream;
+            session.sshStream = stream;
 
             stream
               .on('close', () => {
-                this.window?.webContents.send('terminal-data', {
-                  sessionId,
-                  data: '\r\n*** SSH Connection Closed ***\r\n',
-                });
+                if (!session.isHidden) {
+                  this.window?.webContents.send('terminal-data', {
+                    sessionId,
+                    data: '\r\n*** SSH Connection Closed ***\r\n',
+                  });
+                }
                 this.disconnect(sessionId);
               })
               .on('data', (data: Buffer) => {
-                this.window?.webContents.send('terminal-data', {
-                  sessionId,
-                  data: data.toString('utf-8'),
-                });
+                // If it's an SSH session, and it's NOT hidden, we ALWAYS broadcast.
+                // If it is hidden, we NEVER broadcast.
+                if (!session.isHidden) {
+                  this.window?.webContents.send('terminal-data', {
+                    sessionId,
+                    data: data.toString('utf-8'),
+                  });
+                }
               });
 
             resolve();
           });
         })
         .on('error', (err) => {
-          this.window?.webContents.send('terminal-data', {
-            sessionId,
-            data: `\r\n*** SSH Error: ${err.message} ***\r\n`,
-          });
-          this.window?.webContents.send('device-status', { id: device.id, status: 'Offline' });
+          if (!session.isHidden) {
+            this.window?.webContents.send('terminal-data', {
+              sessionId,
+              data: `\r\n*** SSH Error: ${err.message} ***\r\n`,
+            });
+            this.window?.webContents.send('device-status', { id: device.id, status: 'Offline' });
+          }
           reject(err);
         })
         .connect({
@@ -109,7 +139,7 @@ export class SessionManager {
     });
   }
 
-  private connectSerial(sessionId: string, device: DeviceConfig): Promise<void> {
+  private connectSerial(sessionId: string, device: DeviceConfig, isHidden: boolean): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!device.path) {
         return reject(new Error('No serial port path provided.'));
@@ -122,36 +152,95 @@ export class SessionManager {
         },
         (err) => {
           if (err) {
-            this.window?.webContents.send('terminal-data', {
-              sessionId,
-              data: `\r\n*** Serial Error: ${err.message} ***\r\n`,
-            });
-            this.window?.webContents.send('device-status', { id: device.id, status: 'Offline' });
+            if (!isHidden) {
+              this.window?.webContents.send('terminal-data', {
+                sessionId,
+                data: `\r\n*** Serial Error: ${err.message} ***\r\n`,
+              });
+              this.window?.webContents.send('device-status', { id: device.id, status: 'Offline' });
+            }
             return reject(err);
           }
-          this.window?.webContents.send('device-status', { id: device.id, status: 'Connected' });
+          if (!isHidden) {
+            this.window?.webContents.send('device-status', { id: device.id, status: 'Connected' });
+          }
           resolve();
         }
       );
 
-      this.sessions.set(sessionId, { type: 'serial', deviceId: device.id, serialPort });
+      const session: Session = {
+        sessionId,
+        type: 'serial',
+        deviceId: device.id,
+        isHidden,
+        isBusy: false,
+        deviceConfig: device,
+        serialPort
+      };
+      this.sessions.set(sessionId, session);
 
       serialPort.on('data', (data: Buffer) => {
-        this.window?.webContents.send('terminal-data', {
-          sessionId,
-          data: data.toString('utf-8'),
-        });
+        // For Serial, we broadcast IF it's not hidden AND not busy with an agent command.
+        if (!session.isHidden && !session.isBusy) {
+          this.window?.webContents.send('terminal-data', {
+            sessionId,
+            data: data.toString('utf-8'),
+          });
+        }
       });
 
       serialPort.on('close', () => {
-        this.window?.webContents.send('terminal-data', {
-          sessionId,
-          data: '\r\n*** Serial Connection Closed ***\r\n',
-        });
-        this.window?.webContents.send('device-status', { id: device.id, status: 'Offline' });
+        if (!session.isHidden) {
+          this.window?.webContents.send('terminal-data', {
+            sessionId,
+            data: '\r\n*** Serial Connection Closed ***\r\n',
+          });
+          this.window?.webContents.send('device-status', { id: device.id, status: 'Offline' });
+        }
         this.sessions.delete(sessionId);
       });
     });
+  }
+
+  /**
+   * Retrieves an available background session for the agent, or creates a new one.
+   */
+  async getOrSpawnAgentSession(device: DeviceConfig): Promise<Session> {
+    if (device.type === 'ssh') {
+      // Find an existing hidden SSH session that is NOT busy
+      const availableSession = Array.from(this.sessions.values()).find(
+        (s) => s.deviceId === device.id && s.type === 'ssh' && s.isHidden && !s.isBusy
+      );
+      if (availableSession) {
+        return availableSession;
+      }
+      
+      // If none available, spawn a new one
+      const sessionId = randomUUID();
+      await this.connectSSH(sessionId, device, true);
+      const newSession = this.sessions.get(sessionId)!;
+      return newSession;
+    } else {
+      // For Serial, we can only have ONE session total.
+      let session = this.getSerialSession(device.id);
+      if (!session) {
+        // Create a hidden one if it doesn't exist
+        const sessionId = randomUUID();
+        await this.connectSerial(sessionId, device, true);
+        session = this.sessions.get(sessionId)!;
+      }
+      return session;
+    }
+  }
+
+  revealAgentSessionByDevice(deviceId: string): { sessionId: string, deviceConfig: DeviceConfig } | null {
+    const session = Array.from(this.sessions.values()).find(
+      (s) => s.deviceId === deviceId && s.isHidden
+    );
+    if (!session) return null;
+    session.isHidden = false;
+    this.window?.webContents.send('device-status', { id: session.deviceId, status: 'Connected' });
+    return { sessionId: session.sessionId, deviceConfig: session.deviceConfig };
   }
 
   /**
@@ -161,56 +250,81 @@ export class SessionManager {
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error(`No active session found for session ID: ${sessionId}`);
 
-    return new Promise((resolve) => {
-      let output = '';
-      
-      const cleanCommand = command.replace(/[\r\n]+$/, '');
-      // Use \r\n for Windows SSH & Cisco PTY compatibility
-      const formattedCommand = `${cleanCommand}\r\n`;
+    if (session.type === 'serial' && session.isBusy) {
+      throw new Error(`Serial port is currently busy executing another command.`);
+    }
 
-      let inactivityTimer: NodeJS.Timeout | null = null;
-      let hardTimeoutTimer: NodeJS.Timeout | null = null;
-      let hasReceivedData = false;
+    session.isBusy = true;
 
-      const finish = () => {
-        if (inactivityTimer) clearTimeout(inactivityTimer);
-        if (hardTimeoutTimer) clearTimeout(hardTimeoutTimer);
+    // If it's a serial port and NOT hidden, let the user know we are locking it
+    if (session.type === 'serial' && !session.isHidden) {
+      this.window?.webContents.send('terminal-data', {
+        sessionId,
+        data: `\r\n\x1b[33m[Agent locking serial port to execute command...]\x1b[0m\r\n`,
+      });
+    }
+
+    try {
+      return await new Promise((resolve) => {
+        let output = '';
+        
+        const cleanCommand = command.replace(/[\r\n]+$/, '');
+        // Use \r\n for Windows SSH & Cisco PTY compatibility
+        const formattedCommand = `${cleanCommand}\r\n`;
+
+        let inactivityTimer: NodeJS.Timeout | null = null;
+        let hardTimeoutTimer: NodeJS.Timeout | null = null;
+        let hasReceivedData = false;
+
+        const finish = () => {
+          if (inactivityTimer) clearTimeout(inactivityTimer);
+          if (hardTimeoutTimer) clearTimeout(hardTimeoutTimer);
+
+          if (session.type === 'ssh' && session.sshStream) {
+            session.sshStream.off('data', dataListener);
+          } else if (session.type === 'serial' && session.serialPort) {
+            session.serialPort.off('data', dataListener);
+          }
+          resolve(output.trim());
+        };
+
+        const dataListener = (data: Buffer) => {
+          hasReceivedData = true;
+          const chunk = data.toString('utf-8');
+          output += chunk;
+
+          // Reset inactivity debounce: 600ms of silence after data arrives means output is complete
+          if (inactivityTimer) clearTimeout(inactivityTimer);
+          inactivityTimer = setTimeout(finish, 600);
+        };
 
         if (session.type === 'ssh' && session.sshStream) {
-          session.sshStream.off('data', dataListener);
+          session.sshStream.on('data', dataListener);
+          session.sshStream.write(formattedCommand);
         } else if (session.type === 'serial' && session.serialPort) {
-          session.serialPort.off('data', dataListener);
+          session.serialPort.on('data', dataListener);
+          session.serialPort.write(formattedCommand);
         }
-        resolve(output.trim());
-      };
 
-      const dataListener = (data: Buffer) => {
-        hasReceivedData = true;
-        output += data.toString('utf-8');
-        
-        // Reset inactivity debounce: 600ms of silence after data arrives means output is complete
-        if (inactivityTimer) clearTimeout(inactivityTimer);
-        inactivityTimer = setTimeout(finish, 600);
-      };
+        // Initial silence timer: wait up to 4s for first byte before giving up
+        inactivityTimer = setTimeout(() => {
+          if (!hasReceivedData) {
+            finish();
+          }
+        }, 4000);
 
-      if (session.type === 'ssh' && session.sshStream) {
-        session.sshStream.on('data', dataListener);
-        session.sshStream.write(formattedCommand);
-      } else if (session.type === 'serial' && session.serialPort) {
-        session.serialPort.on('data', dataListener);
-        session.serialPort.write(formattedCommand);
+        // Hard safety timeout
+        hardTimeoutTimer = setTimeout(finish, timeoutMs);
+      });
+    } finally {
+      session.isBusy = false;
+      if (session.type === 'serial' && !session.isHidden) {
+        this.window?.webContents.send('terminal-data', {
+          sessionId,
+          data: `\r\n\x1b[32m[Agent command complete. Lock released.]\x1b[0m\r\n`,
+        });
       }
-
-      // Initial silence timer: wait up to 4s for first byte before giving up
-      inactivityTimer = setTimeout(() => {
-        if (!hasReceivedData) {
-          finish();
-        }
-      }, 4000);
-
-      // Hard safety timeout
-      hardTimeoutTimer = setTimeout(finish, timeoutMs);
-    });
+    }
   }
 
   sendInput(sessionId: string, data: string) {
@@ -224,7 +338,10 @@ export class SessionManager {
     const session = this.sessions.get(sessionId);
     if (!session) return;
 
-    this.window?.webContents.send('device-status', { id: session.deviceId, status: 'Offline' });
+    if (!session.isHidden) {
+      this.window?.webContents.send('device-status', { id: session.deviceId, status: 'Offline' });
+    }
+    
     if (session.sshStream) session.sshStream.end();
     if (session.sshClient) session.sshClient.end();
     if (session.serialPort?.isOpen) session.serialPort.close();

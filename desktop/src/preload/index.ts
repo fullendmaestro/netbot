@@ -16,6 +16,7 @@ const api = {
     ipcRenderer.on('device-status', (_, update) => callback(update));
   },
   getSerialPorts: () => ipcRenderer.invoke('get-serial-ports'),
+  revealAgentSession: (deviceId: string) => ipcRenderer.invoke('reveal-agent-session', deviceId),
 }
 
 if (process.contextIsolated) {

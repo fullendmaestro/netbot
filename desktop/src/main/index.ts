@@ -82,6 +82,19 @@ app.whenReady().then(() => {
   ipcMain.on('disconnect-device', (_, sessionId) => sessionManager.disconnect(sessionId));
   ipcMain.on('terminal-input', (_, { sessionId, data }) => sessionManager.sendInput(sessionId, data));
   ipcMain.handle('get-serial-ports', async () => sessionManager.getSerialPorts());
+  
+  ipcMain.handle('reveal-agent-session', async (_, identifier: string) => {
+    const devices = deviceStore.getDevices();
+    const target = devices.find(d => d.id === identifier || (d.name && d.name.toLowerCase() === identifier.toLowerCase()));
+    
+    if (!target) return null;
+
+    const revealed = sessionManager.revealAgentSessionByDevice(target.id);
+    if (revealed) return revealed;
+
+    const sessionId = await sessionManager.connect(target);
+    return { sessionId, deviceConfig: target };
+  });
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

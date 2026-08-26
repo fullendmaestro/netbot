@@ -8,6 +8,7 @@ import { SidebarProvider, SidebarInset } from "./components/ui/sidebar";
 import { WorkspaceArea } from "./components/WorkspaceArea";
 import { AssistantPanel } from "./components/AssistantPanel";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./components/ui/resizable";
+import { useCommandListener } from "./hooks/useCommandListener";
 
 export function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -22,6 +23,8 @@ export function App() {
       window.api.setProjectId(selectedProject);
     }
   }, [selectedProject]);
+
+  useCommandListener(selectedProject);
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
@@ -93,7 +96,7 @@ export function App() {
           </ResizablePanel>
           <ResizableHandle withHandle={false} />
           <ResizablePanel defaultSize="25%" minSize="15%" maxSize="40%">
-            <AssistantPanel user={user} />
+            <AssistantPanel user={user} projectId={selectedProject} />
           </ResizablePanel>
         </ResizablePanelGroup>
       </SidebarInset>

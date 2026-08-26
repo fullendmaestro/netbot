@@ -3,13 +3,11 @@ import asyncio
 import firebase_admin
 from firebase_admin import firestore
 from google.adk.agents.llm_agent import Agent
-from ws_manager import bridge_manager
+from google.adk.tools.tool_context import ToolContext as Context
+from copilot.firebase_dispatcher import execute_remote_command
 
-DEFAULT_CLIENT_ID = "user_1"
-
-def _get_devices_from_db() -> list:
+def _get_devices_from_db(project_id: str) -> list:
     """Read devices directly from Firestore based on the active project."""
-    project_id = bridge_manager.get_project_id(DEFAULT_CLIENT_ID)
     if not project_id:
         return []
     
@@ -25,26 +23,33 @@ def _get_devices_from_db() -> list:
         
     return devices
 
-def list_managed_devices() -> str:
+def list_managed_devices(ctx: Context) -> str:
     """
     Returns the list of all registered network devices (SSH and Serial), 
     their IDs, connection types, and active statuses.
     """
     try:
-        devices = _get_devices_from_db()
+        project_id = ctx.state.get('project_id')
+        if not project_id:
+            return "Error: No active project found in context state."
+            
+        devices = _get_devices_from_db(project_id)
         return json.dumps(devices, indent=2)
     except Exception as e:
         return f"Error fetching devices: {str(e)}"
 
-async def run_terminal_command(device_identifier: str, command: str) -> str:
+async def run_terminal_command(ctx: Context, device_identifier: str, command: str) -> str:
     """
     Executes a shell or terminal command on a specific managed device (by Name or Device ID)
     and returns the terminal output.
     """
     try:
-        # Await the execution directly instead of using threadsafe/futures
-        return await bridge_manager.execute_remote_command(
-            client_id=DEFAULT_CLIENT_ID,
+        project_id = ctx.state.get('project_id')
+        if not project_id:
+            return "Error: No active project found in context state."
+            
+        return await execute_remote_command(
+            project_id=project_id,
             device_identifier=device_identifier,
             command=command,
             timeout=20.0

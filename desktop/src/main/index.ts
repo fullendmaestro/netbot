@@ -3,15 +3,10 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { SessionManager } from './session-manager'
 import { DeviceStore } from './device-store'
-import { AgentRelayClient } from './ws-relay'
 import icon from '../../resources/icon.png?asset'
 
 let sessionManager: SessionManager;
 let deviceStore: DeviceStore;
-let relayClient: AgentRelayClient;
-
-const AGENT_WS_URL = process.env.AGENT_WS_URL || 'ws://127.0.0.1:8000';
-const CLIENT_ID = 'user_1';
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -54,9 +49,6 @@ function createWindow(): void {
   // Initialize Managers
   sessionManager = new SessionManager(mainWindow);
   deviceStore = new DeviceStore();
-  
-  relayClient = new AgentRelayClient(AGENT_WS_URL, CLIENT_ID, sessionManager, deviceStore);
-  // relayClient.connect(); will happen when token is provided
 }
 
 app.whenReady().then(() => {
@@ -65,13 +57,7 @@ app.whenReady().then(() => {
   
   createWindow()
 
-  ipcMain.on('set-auth-token', (_, token) => {
-    relayClient.setToken(token);
-  });
 
-  ipcMain.on('set-project-id', (_, projectId) => {
-    relayClient.setProjectId(projectId);
-  });
 
   ipcMain.on('sync-devices', (_, devices) => {
     deviceStore.syncFromRemote(devices);
@@ -84,6 +70,16 @@ app.whenReady().then(() => {
   ipcMain.on('disconnect-device', (_, sessionId) => sessionManager.disconnect(sessionId));
   ipcMain.on('terminal-input', (_, { sessionId, data }) => sessionManager.sendInput(sessionId, data));
   ipcMain.handle('get-serial-ports', async () => sessionManager.getSerialPorts());
+  
+  ipcMain.handle('execute-agent-command', async (_, deviceIdentifier: string, command: string) => {
+    const devices = deviceStore.getDevices();
+    const target = devices.find(d => d.id === deviceIdentifier || (d.name && d.name.toLowerCase() === deviceIdentifier.toLowerCase()));
+    
+    if (!target) throw new Error(`Device ${deviceIdentifier} not found in desktop device store.`);
+
+    const session = await sessionManager.getOrSpawnAgentSession(target);
+    return await sessionManager.executeCommand(session.sessionId, command);
+  });
   
   ipcMain.handle('reveal-agent-session', async (_, identifier: string) => {
     const devices = deviceStore.getDevices();

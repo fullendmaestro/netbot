@@ -18,6 +18,7 @@ const api = {
   },
   getSerialPorts: () => ipcRenderer.invoke('get-serial-ports'),
   revealAgentSession: (deviceId: string) => ipcRenderer.invoke('reveal-agent-session', deviceId),
+  executeAgentCommand: (deviceIdentifier: string, command: string) => ipcRenderer.invoke('execute-agent-command', deviceIdentifier, command),
 }
 
 if (process.contextIsolated) {

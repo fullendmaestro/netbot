@@ -19,7 +19,7 @@ import { User } from '../firebase'
 const ADK_URL = 'http://localhost:8000'
 const APP_NAME = 'copilot'
 
-export function AssistantPanel({ user }: { user: User }) {
+export function AssistantPanel({ user, projectId }: { user: User, projectId: string }) {
   const [historyOpen, setHistoryOpen] = useState(false)
   
   // Initialize adapter with dynamic user
@@ -29,12 +29,26 @@ export function AssistantPanel({ user }: { user: User }) {
     userId: user.uid
   });
 
+  let injected = false;
+  const baseStream = createAdkStream({
+    api: ADK_URL,
+    appName: APP_NAME,
+    userId: user.uid
+  });
+
+  const stream: typeof baseStream = (messages, config) => {
+    if (!injected) {
+      injected = true;
+      config = { 
+        ...config, 
+        stateDelta: { ...config?.stateDelta, project_id: projectId } 
+      };
+    }
+    return baseStream(messages, config);
+  };
+
   const runtime = useAdkRuntime({
-    stream: createAdkStream({
-      api: ADK_URL,
-      appName: APP_NAME,
-      userId: user.uid
-    }),
+    stream,
     sessionAdapter: adapter,
     load
   })

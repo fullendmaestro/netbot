@@ -34,6 +34,15 @@ function createWindow(): void {
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
+    // Allow Firebase Auth and Google Sign-in URLs to open as internal popups
+    if (
+      details.url.includes('firebaseapp.com/__/auth') || 
+      details.url.includes('accounts.google.com')
+    ) {
+      return { action: 'allow' }
+    }
+
+    // For all other links, open in the user's default system browser and deny the internal popup
     shell.openExternal(details.url)
     return { action: 'deny' }
   })

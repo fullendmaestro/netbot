@@ -4,14 +4,12 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { SessionManager } from './session-manager'
 import { DeviceStore } from './device-store'
 import { AgentRelayClient } from './ws-relay'
-import { ApiClient } from './api-client'
 import icon from '../../resources/icon.png?asset'
 
 let sessionManager: SessionManager;
 let deviceStore: DeviceStore;
 let relayClient: AgentRelayClient;
 
-const AGENT_API_URL = process.env.AGENT_API_URL || 'http://127.0.0.1:8000';
 const AGENT_WS_URL = process.env.AGENT_WS_URL || 'ws://127.0.0.1:8000';
 const CLIENT_ID = 'user_1';
 

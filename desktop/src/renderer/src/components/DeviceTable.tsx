@@ -14,7 +14,6 @@ import {
 } from '@dnd-kit/core'
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import {
-  arrayMove,
   SortableContext,
   useSortable,
   verticalListSortingStrategy
@@ -158,7 +157,7 @@ function makeColumns(onRemoveDevice: (id: string) => void) {
       header: 'Address / Path',
       cell: ({ row }) => (
         <span className="font-mono text-sm">
-          {row.original.type === 'ssh' ? row.original.host : row.original.path}
+          {row.original.type === 'ssh' || row.original.type === 'telnet' ? row.original.host : row.original.path}
         </span>
       )
     }),
@@ -252,7 +251,7 @@ function DraggableRow({ row }: { row: Row<typeof features, DeviceConfig> }) {
   )
 }
 
-export function DeviceTable({ projectId, devices, loading }: { projectId: string, devices: DeviceConfig[], loading: boolean }) {
+export function DeviceTable({ projectId, devices }: { projectId: string, devices: DeviceConfig[], loading: boolean }) {
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] = React.useState<ColumnVisibilityState>({})
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -284,6 +283,10 @@ export function DeviceTable({ projectId, devices, loading }: { projectId: string
   const [sshHost, setSshHost] = React.useState('')
   const [sshUser, setSshUser] = React.useState('')
   const [sshPass, setSshPass] = React.useState('')
+  const [telnetHost, setTelnetHost] = React.useState('')
+  const [telnetPort, setTelnetPort] = React.useState('23')
+  const [telnetUser, setTelnetUser] = React.useState('')
+  const [telnetPass, setTelnetPass] = React.useState('')
   const [serialPath, setSerialPath] = React.useState('')
   const [serialBaud, setSerialBaud] = React.useState('9600')
   const [addTab, setAddTab] = React.useState('ssh')
@@ -310,8 +313,8 @@ export function DeviceTable({ projectId, devices, loading }: { projectId: string
   const handleAddDevice = async () => {
     const newDevice: DeviceConfig = {
       id: crypto.randomUUID(),
-      name: deviceName || (addTab === 'ssh' ? sshHost : serialPath),
-      type: addTab as 'ssh' | 'serial',
+      name: deviceName || (addTab === 'ssh' ? sshHost : addTab === 'telnet' ? telnetHost : serialPath),
+      type: addTab as 'ssh' | 'serial' | 'telnet',
       connectionStatus: 'Offline',
       ...(addTab === 'ssh'
         ? {
@@ -320,6 +323,14 @@ export function DeviceTable({ projectId, devices, loading }: { projectId: string
             password: sshPass,
             authType: 'password',
             port: 22
+          }
+        : addTab === 'telnet'
+        ? {
+            host: telnetHost,
+            port: parseInt(telnetPort, 10) || 23,
+            username: telnetUser,
+            password: telnetPass,
+            authType: 'password'
           }
         : {
             path: serialPath,
@@ -344,6 +355,10 @@ export function DeviceTable({ projectId, devices, loading }: { projectId: string
     setSshHost('')
     setSshUser('')
     setSshPass('')
+    setTelnetHost('')
+    setTelnetPort('23')
+    setTelnetUser('')
+    setTelnetPass('')
     setSerialPath('')
   }
 
@@ -433,8 +448,9 @@ export function DeviceTable({ projectId, devices, loading }: { projectId: string
                 </DialogDescription>
               </DialogHeader>
               <Tabs value={addTab} onValueChange={setAddTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="ssh">SSH</TabsTrigger>
+                  <TabsTrigger value="telnet">Telnet</TabsTrigger>
                   <TabsTrigger value="serial">Serial</TabsTrigger>
                 </TabsList>
                 <div className="py-4 space-y-4">
@@ -474,6 +490,45 @@ export function DeviceTable({ projectId, devices, loading }: { projectId: string
                         type="password"
                         value={sshPass}
                         onChange={(e) => setSshPass(e.target.value)}
+                      />
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="telnet" className="space-y-4 mt-0">
+                    <div className="space-y-1">
+                      <Label htmlFor="telnet-host">Host / IP</Label>
+                      <Input
+                        id="telnet-host"
+                        value={telnetHost}
+                        onChange={(e) => setTelnetHost(e.target.value)}
+                        placeholder="192.168.1.1"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="telnet-port">Port</Label>
+                      <Input
+                        id="telnet-port"
+                        value={telnetPort}
+                        onChange={(e) => setTelnetPort(e.target.value)}
+                        placeholder="23"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="telnet-user">Username (Optional)</Label>
+                      <Input
+                        id="telnet-user"
+                        value={telnetUser}
+                        onChange={(e) => setTelnetUser(e.target.value)}
+                        placeholder="admin"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="telnet-pass">Password (Optional)</Label>
+                      <Input
+                        id="telnet-pass"
+                        type="password"
+                        value={telnetPass}
+                        onChange={(e) => setTelnetPass(e.target.value)}
                       />
                     </div>
                   </TabsContent>

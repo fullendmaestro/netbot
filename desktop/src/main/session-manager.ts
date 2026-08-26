@@ -1,12 +1,13 @@
 import { Client } from 'ssh2';
 import { SerialPort } from 'serialport';
+import { Telnet } from 'telnet-client';
 import { BrowserWindow } from 'electron';
 import type { DeviceConfig } from '../shared/types';
 import { randomUUID } from 'crypto';
 
 export interface Session {
   sessionId: string;
-  type: 'ssh' | 'serial';
+  type: 'ssh' | 'serial' | 'telnet';
   deviceId: string;
   isHidden: boolean;
   isBusy: boolean;
@@ -14,6 +15,7 @@ export interface Session {
   sshClient?: Client;
   sshStream?: any;
   serialPort?: SerialPort;
+  telnetClient?: Telnet;
 }
 
 export class SessionManager {
@@ -58,6 +60,8 @@ export class SessionManager {
       await this.connectSSH(sessionId, device, false);
     } else if (device.type === 'serial') {
       await this.connectSerial(sessionId, device, false);
+    } else if (device.type === 'telnet') {
+      await this.connectTelnet(sessionId, device, false);
     }
     return sessionId;
   }
@@ -202,6 +206,80 @@ export class SessionManager {
     });
   }
 
+  private connectTelnet(sessionId: string, device: DeviceConfig, isHidden: boolean): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+      const telnetClient = new Telnet();
+      const session: Session = {
+        sessionId,
+        type: 'telnet',
+        deviceId: device.id,
+        isHidden,
+        isBusy: false,
+        deviceConfig: device,
+        telnetClient
+      };
+      this.sessions.set(sessionId, session);
+
+      const params = {
+        host: device.host,
+        port: device.port || 23,
+        username: device.username,
+        password: device.password,
+        shellPrompt: /.*[>#$] $/, // Used for initial login
+        timeout: 10000,
+        negotiationMandatory: false
+      };
+
+      try {
+        await telnetClient.connect(params);
+        if (!isHidden) {
+          this.window?.webContents.send('device-status', { id: device.id, status: 'Connected' });
+        }
+        
+        telnetClient.on('data', (data: Buffer) => {
+          if (!session.isHidden && !session.isBusy) {
+            this.window?.webContents.send('terminal-data', {
+              sessionId,
+              data: data.toString('utf-8'),
+            });
+          }
+        });
+
+        telnetClient.on('close', () => {
+          if (!session.isHidden) {
+            this.window?.webContents.send('terminal-data', {
+              sessionId,
+              data: '\r\n*** Telnet Connection Closed ***\r\n',
+            });
+            this.window?.webContents.send('device-status', { id: device.id, status: 'Offline' });
+          }
+          this.disconnect(sessionId);
+        });
+
+        telnetClient.on('error', (err: any) => {
+          if (!session.isHidden) {
+            this.window?.webContents.send('terminal-data', {
+              sessionId,
+              data: `\r\n*** Telnet Error: ${err.message} ***\r\n`,
+            });
+            this.window?.webContents.send('device-status', { id: device.id, status: 'Offline' });
+          }
+        });
+        
+        resolve();
+      } catch (err: any) {
+        if (!isHidden) {
+          this.window?.webContents.send('terminal-data', {
+            sessionId,
+            data: `\r\n*** Telnet Connection Failed: ${err.message} ***\r\n`,
+          });
+          this.window?.webContents.send('device-status', { id: device.id, status: 'Offline' });
+        }
+        reject(err);
+      }
+    });
+  }
+
   /**
    * Retrieves an available background session for the agent, or creates a new one.
    */
@@ -218,6 +296,17 @@ export class SessionManager {
       // If none available, spawn a new one
       const sessionId = randomUUID();
       await this.connectSSH(sessionId, device, true);
+      const newSession = this.sessions.get(sessionId)!;
+      return newSession;
+    } else if (device.type === 'telnet') {
+      const availableSession = Array.from(this.sessions.values()).find(
+        (s) => s.deviceId === device.id && s.type === 'telnet' && s.isHidden && !s.isBusy
+      );
+      if (availableSession) {
+        return availableSession;
+      }
+      const sessionId = randomUUID();
+      await this.connectTelnet(sessionId, device, true);
       const newSession = this.sessions.get(sessionId)!;
       return newSession;
     } else {
@@ -250,17 +339,17 @@ export class SessionManager {
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error(`No active session found for session ID: ${sessionId}`);
 
-    if (session.type === 'serial' && session.isBusy) {
-      throw new Error(`Serial port is currently busy executing another command.`);
+    if ((session.type === 'serial' || session.type === 'telnet') && session.isBusy) {
+      throw new Error(`Device is currently busy executing another command.`);
     }
 
     session.isBusy = true;
 
     // If it's a serial port and NOT hidden, let the user know we are locking it
-    if (session.type === 'serial' && !session.isHidden) {
+    if ((session.type === 'serial' || session.type === 'telnet') && !session.isHidden) {
       this.window?.webContents.send('terminal-data', {
         sessionId,
-        data: `\r\n\x1b[33m[Agent locking serial port to execute command...]\x1b[0m\r\n`,
+        data: `\r\n\x1b[33m[Agent locking device to execute command...]\x1b[0m\r\n`,
       });
     }
 
@@ -284,6 +373,8 @@ export class SessionManager {
             session.sshStream.off('data', dataListener);
           } else if (session.type === 'serial' && session.serialPort) {
             session.serialPort.off('data', dataListener);
+          } else if (session.type === 'telnet' && session.telnetClient) {
+            session.telnetClient.removeListener('data', dataListener);
           }
           resolve(output.trim());
         };
@@ -304,6 +395,9 @@ export class SessionManager {
         } else if (session.type === 'serial' && session.serialPort) {
           session.serialPort.on('data', dataListener);
           session.serialPort.write(formattedCommand);
+        } else if (session.type === 'telnet' && session.telnetClient) {
+          session.telnetClient.on('data', dataListener);
+          session.telnetClient.send(cleanCommand, { waitfor: false }).catch(() => {});
         }
 
         // Initial silence timer: wait up to 4s for first byte before giving up
@@ -318,7 +412,7 @@ export class SessionManager {
       });
     } finally {
       session.isBusy = false;
-      if (session.type === 'serial' && !session.isHidden) {
+      if ((session.type === 'serial' || session.type === 'telnet') && !session.isHidden) {
         this.window?.webContents.send('terminal-data', {
           sessionId,
           data: `\r\n\x1b[32m[Agent command complete. Lock released.]\x1b[0m\r\n`,
@@ -332,6 +426,7 @@ export class SessionManager {
     if (!session) return;
     if (session.type === 'ssh' && session.sshStream) session.sshStream.write(data);
     else if (session.type === 'serial' && session.serialPort?.isOpen) session.serialPort.write(data);
+    else if (session.type === 'telnet' && session.telnetClient) session.telnetClient.send(data.replace(/\r/g, ''), { waitfor: false });
   }
 
   disconnect(sessionId: string) {
@@ -345,6 +440,7 @@ export class SessionManager {
     if (session.sshStream) session.sshStream.end();
     if (session.sshClient) session.sshClient.end();
     if (session.serialPort?.isOpen) session.serialPort.close();
+    if (session.telnetClient) session.telnetClient.end();
     this.sessions.delete(sessionId);
   }
 

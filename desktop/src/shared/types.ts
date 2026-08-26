@@ -1,7 +1,7 @@
 export interface DeviceConfig {
   id: string; // we'll use string ids (UUID) going forward
   name: string;
-  type: 'ssh' | 'serial';
+  type: 'ssh' | 'serial' | 'telnet';
   connectionStatus: 'Connected' | 'Offline' | 'Connecting';
   
   // SSH fields

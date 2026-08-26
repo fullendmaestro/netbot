@@ -91,7 +91,7 @@ export function WorkspaceArea({ projectId }: { projectId: string }) {
                     )}
                   >
                     <span className="truncate flex-1">
-                      {tab.device.name || (tab.device.type === 'ssh' ? tab.device.host : tab.device.path) || 'Terminal'}
+                      {tab.device.name || (tab.device.type === 'ssh' || tab.device.type === 'telnet' ? tab.device.host : tab.device.path) || 'Terminal'}
                     </span>
                     <button
                       onClick={(e) => closeTab(tab.sessionId, e)}

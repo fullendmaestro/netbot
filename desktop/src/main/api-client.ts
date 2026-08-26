@@ -1,4 +1,3 @@
-import net from 'node:http';
 import type { DeviceConfig } from '../shared/types';
 
 export class ApiClient {

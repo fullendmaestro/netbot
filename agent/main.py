@@ -28,7 +28,13 @@ async def startup_event():
     bridge_manager.set_loop(asyncio.get_running_loop())
 
 @app.websocket("/ws/bridge/{client_id}")
-async def websocket_bridge_endpoint(websocket: WebSocket, client_id: str):
+async def websocket_bridge_endpoint(websocket: WebSocket, client_id: str, token: str):
+    from api.auth import verify_ws_token
+    try:
+        verify_ws_token(token)
+    except Exception as e:
+        await websocket.close(code=1008, reason=str(e))
+        return
     await bridge_manager.connect(client_id, websocket)
     try:
         while True:

@@ -10,6 +10,7 @@ export class AgentRelayClient {
   private sessionManager: SessionManager;
   private deviceStore: DeviceStore;
   private isReconnecting = false;
+  private token: string | null = null;
 
   constructor(serverUrl: string, clientId: string, sessionManager: SessionManager, deviceStore: DeviceStore) {
     this.serverUrl = serverUrl;
@@ -18,8 +19,22 @@ export class AgentRelayClient {
     this.deviceStore = deviceStore;
   }
 
+  setToken(token: string | null) {
+    this.token = token;
+    // Reconnect when token changes
+    if (this.ws) {
+      this.ws.close();
+    } else if (token) {
+      this.connect();
+    }
+  }
+
   connect() {
-    const wsUrl = `${this.serverUrl}/ws/bridge/${this.clientId}`;
+    if (!this.token) {
+      console.log('[WS Relay] No auth token, delaying connection.');
+      return;
+    }
+    const wsUrl = `${this.serverUrl}/ws/bridge/${this.clientId}?token=${this.token}`;
     console.log(`[WS Relay] Connecting to ${wsUrl}...`);
 
     this.ws = new WebSocket(wsUrl);

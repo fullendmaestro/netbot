@@ -3,10 +3,11 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from api.auth import verify_token
 
-router = APIRouter(prefix="/api/devices", tags=["devices"])
+router = APIRouter(prefix="/api/devices", tags=["devices"], dependencies=[Depends(verify_token)])
 
 DB_PATH = Path(__file__).parent.parent / "devices.db"
 

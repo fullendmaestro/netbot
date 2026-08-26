@@ -51,12 +51,7 @@ function createWindow(): void {
   apiClient = new ApiClient(AGENT_API_URL);
   
   relayClient = new AgentRelayClient(AGENT_WS_URL, CLIENT_ID, sessionManager, deviceStore);
-  relayClient.connect();
-
-  // On startup, fetch from cloud DB and cache locally
-  apiClient.fetchRemoteDevices().then(remoteDevices => {
-    deviceStore.syncFromRemote(remoteDevices);
-  }).catch(err => console.error("Failed to sync initial devices:", err));
+  // relayClient.connect(); will happen when token is provided
 }
 
 app.whenReady().then(() => {
@@ -64,6 +59,18 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
   
   createWindow()
+
+  ipcMain.on('set-auth-token', (_, token) => {
+    apiClient.setToken(token);
+    relayClient.setToken(token);
+    
+    // Fetch from cloud DB and cache locally once authenticated
+    if (token) {
+      apiClient.fetchRemoteDevices().then(remoteDevices => {
+        deviceStore.syncFromRemote(remoteDevices);
+      }).catch(err => console.error("Failed to sync initial devices:", err));
+    }
+  });
 
   // IPC Handlers: HTTP to Cloud -> Cache Locally -> Return to UI
   ipcMain.handle('get-devices', () => deviceStore.getDevices());

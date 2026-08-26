@@ -3,6 +3,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 import type { DeviceConfig } from '../shared/types'
 
 const api = {
+  setAuthToken: (token: string | null) => ipcRenderer.send('set-auth-token', token),
   getDevices: (): Promise<DeviceConfig[]> => ipcRenderer.invoke('get-devices'),
   addDevice: (device: DeviceConfig): Promise<DeviceConfig[]> => ipcRenderer.invoke('add-device', device),
   removeDevice: (id: string): Promise<DeviceConfig[]> => ipcRenderer.invoke('remove-device', id),

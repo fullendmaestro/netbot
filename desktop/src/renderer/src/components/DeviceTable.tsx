@@ -310,7 +310,7 @@ export function DeviceTable({ projectId, devices }: { projectId: string, devices
 
   const columns = React.useMemo(() => makeColumns(handleRemoveDevice), [handleRemoveDevice])
 
-  const handleAddDevice = async () => {
+const handleAddDevice = async () => {
     const newDevice: DeviceConfig = {
       id: crypto.randomUUID(),
       name: deviceName || (addTab === 'ssh' ? sshHost : addTab === 'telnet' ? telnetHost : serialPath),
@@ -338,17 +338,16 @@ export function DeviceTable({ projectId, devices }: { projectId: string, devices
           })
     }
 
-    // Add device to Firestore
+    // Destructure out the fields you don't want to send to Firestore
+    const { id, connectionStatus, ...firestoreData } = newDevice;
+
     try {
-      await addDoc(collection(db, "projects", projectId, "devices"), {
-        ...newDevice,
-        connectionStatus: undefined, // Don't save status to DB
-        id: undefined // Let Firestore generate ID
-      })
+      // Add the cleaned payload to Firestore
+      await addDoc(collection(db, "projects", projectId, "devices"), firestoreData);
     } catch (e) {
       console.error("Error adding device", e);
     }
-
+    
     setIsAddOpen(false)
     // reset form
     setDeviceName('')

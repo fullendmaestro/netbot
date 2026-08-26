@@ -86,7 +86,7 @@ export function WorkspaceArea({ projectId }: { projectId: string }) {
                     className={cn(
                       "group relative flex items-center max-w-48 h-7 px-3 rounded-md cursor-pointer select-none text-sm font-medium transition-colors",
                       activeTabId === tab.sessionId
-                        ? "bg-muted/50 text-foreground border-t border-x"
+                        ? "bg-muted text-foreground border-t border-x"
                         : "text-muted-foreground hover:bg-muted"
                     )}
                   >

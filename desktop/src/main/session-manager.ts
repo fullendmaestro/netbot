@@ -5,6 +5,30 @@ import { BrowserWindow } from 'electron';
 import type { DeviceConfig } from '../shared/types';
 import { randomUUID } from 'crypto';
 
+// Helper to strip Telnet IAC (0xFF) negotiation bytes from raw streams
+function stripTelnetIAC(buffer: Buffer): Buffer {
+  const result: number[] = [];
+  let i = 0;
+  while (i < buffer.length) {
+    if (buffer[i] === 255) {
+      i++;
+      if (i >= buffer.length) break;
+      const cmd = buffer[i];
+      i++;
+      if (cmd >= 251 && cmd <= 254) {
+        i++; // skip option
+      } else if (cmd === 250) {
+        while (i < buffer.length && buffer[i] !== 240) i++;
+        if (i < buffer.length) i++; // skip SE
+      }
+    } else {
+      result.push(buffer[i]);
+      i++;
+    }
+  }
+  return Buffer.from(result);
+}
+
 export interface Session {
   sessionId: string;
   type: 'ssh' | 'serial' | 'telnet';
@@ -16,6 +40,7 @@ export interface Session {
   sshStream?: any;
   serialPort?: SerialPort;
   telnetClient?: Telnet;
+  telnetStream?: any;
 }
 
 export class SessionManager {
@@ -223,11 +248,10 @@ export class SessionManager {
       const params = {
         host: device.host,
         port: device.port || 23,
-        username: device.username,
-        password: device.password,
-        shellPrompt: /.*[>#$] $/, // Used for initial login
         timeout: 10000,
-        negotiationMandatory: false
+        disableLogon: true,
+        shellPrompt: null, // Resolves immediately without waiting for prompt
+        initialLFCR: true
       };
 
       try {
@@ -236,16 +260,22 @@ export class SessionManager {
           this.window?.webContents.send('device-status', { id: device.id, status: 'Connected' });
         }
         
-        telnetClient.on('data', (data: Buffer) => {
+        const stream = await telnetClient.shell();
+        session.telnetStream = stream;
+
+        stream.on('data', (data: Buffer) => {
           if (!session.isHidden && !session.isBusy) {
-            this.window?.webContents.send('terminal-data', {
-              sessionId,
-              data: data.toString('utf-8'),
-            });
+            const cleanData = stripTelnetIAC(data);
+            if (cleanData.length > 0) {
+              this.window?.webContents.send('terminal-data', {
+                sessionId,
+                data: cleanData.toString('utf-8'),
+              });
+            }
           }
         });
 
-        telnetClient.on('close', () => {
+        stream.on('close', () => {
           if (!session.isHidden) {
             this.window?.webContents.send('terminal-data', {
               sessionId,
@@ -256,7 +286,7 @@ export class SessionManager {
           this.disconnect(sessionId);
         });
 
-        telnetClient.on('error', (err: any) => {
+        stream.on('error', (err: any) => {
           if (!session.isHidden) {
             this.window?.webContents.send('terminal-data', {
               sessionId,
@@ -373,15 +403,16 @@ export class SessionManager {
             session.sshStream.off('data', dataListener);
           } else if (session.type === 'serial' && session.serialPort) {
             session.serialPort.off('data', dataListener);
-          } else if (session.type === 'telnet' && session.telnetClient) {
-            session.telnetClient.removeListener('data', dataListener);
+          } else if (session.type === 'telnet' && session.telnetStream) {
+            session.telnetStream.off('data', dataListener);
           }
           resolve(output.trim());
         };
 
         const dataListener = (data: Buffer) => {
           hasReceivedData = true;
-          const chunk = data.toString('utf-8');
+          const cleanBuf = session.type === 'telnet' ? stripTelnetIAC(data) : data;
+          const chunk = cleanBuf.toString('utf-8');
           output += chunk;
 
           // Reset inactivity debounce: 600ms of silence after data arrives means output is complete
@@ -395,9 +426,9 @@ export class SessionManager {
         } else if (session.type === 'serial' && session.serialPort) {
           session.serialPort.on('data', dataListener);
           session.serialPort.write(formattedCommand);
-        } else if (session.type === 'telnet' && session.telnetClient) {
-          session.telnetClient.on('data', dataListener);
-          session.telnetClient.send(cleanCommand, { waitfor: false }).catch(() => {});
+        } else if (session.type === 'telnet' && session.telnetStream) {
+          session.telnetStream.on('data', dataListener);
+          session.telnetStream.write(formattedCommand);
         }
 
         // Initial silence timer: wait up to 4s for first byte before giving up
@@ -426,7 +457,7 @@ export class SessionManager {
     if (!session) return;
     if (session.type === 'ssh' && session.sshStream) session.sshStream.write(data);
     else if (session.type === 'serial' && session.serialPort?.isOpen) session.serialPort.write(data);
-    else if (session.type === 'telnet' && session.telnetClient) session.telnetClient.send(data.replace(/\r/g, ''), { waitfor: false });
+    else if (session.type === 'telnet' && session.telnetStream) session.telnetStream.write(data);
   }
 
   disconnect(sessionId: string) {

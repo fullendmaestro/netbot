@@ -1,24 +1,29 @@
 import json
 import asyncio
-import sqlite3
-from pathlib import Path
+import firebase_admin
+from firebase_admin import firestore
 from google.adk.agents.llm_agent import Agent
 from ws_manager import bridge_manager
 
 DEFAULT_CLIENT_ID = "user_1"
-DB_PATH = Path(__file__).parent.parent / "devices.db"
 
 def _get_devices_from_db() -> list:
-    """Read devices directly from the SQLite DB."""
-    if not DB_PATH.exists():
+    """Read devices directly from Firestore based on the active project."""
+    project_id = bridge_manager.get_project_id(DEFAULT_CLIENT_ID)
+    if not project_id:
         return []
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    try:
-        rows = conn.execute("SELECT * FROM devices").fetchall()
-        return [dict(r) for r in rows]
-    finally:
-        conn.close()
+    
+    db = firestore.client()
+    docs = db.collection('projects').document(project_id).collection('devices').stream()
+    
+    devices = []
+    for doc in docs:
+        d = doc.to_dict()
+        d['id'] = doc.id
+        d['connectionStatus'] = 'Offline'
+        devices.append(d)
+        
+    return devices
 
 def list_managed_devices() -> str:
     """

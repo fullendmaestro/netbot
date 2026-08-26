@@ -1,4 +1,6 @@
 import * as React from 'react'
+import { collection, addDoc, deleteDoc, doc } from 'firebase/firestore'
+import { db } from '../firebase'
 import {
   closestCenter,
   DndContext,
@@ -250,12 +252,27 @@ function DraggableRow({ row }: { row: Row<typeof features, DeviceConfig> }) {
   )
 }
 
-export function DeviceTable() {
-  const [data, setData] = React.useState<DeviceConfig[]>([])
+export function DeviceTable({ projectId, devices, loading }: { projectId: string, devices: DeviceConfig[], loading: boolean }) {
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] = React.useState<ColumnVisibilityState>({})
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [sorting, setSorting] = React.useState<SortingState>([])
+  const [connectionStatuses, setConnectionStatuses] = React.useState<Record<string, DeviceConfig['connectionStatus']>>({})
+
+  React.useEffect(() => {
+    // Type 'status' properly here as well
+    const handleStatus = (update: { id: string; status: DeviceConfig['connectionStatus'] }) => {
+      setConnectionStatuses((prev) => ({ ...prev, [update.id]: update.status }))
+    }
+    ;(window as any).api.onDeviceStatus(handleStatus)
+  }, [])
+
+  const tableData = React.useMemo(() => {
+    return devices.map(d => ({
+      ...d,
+      connectionStatus: connectionStatuses[d.id] || d.connectionStatus
+    }))
+  }, [devices, connectionStatuses])
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
     pageSize: 10
@@ -278,31 +295,17 @@ export function DeviceTable() {
     useSensor(TouchSensor, {}),
     useSensor(KeyboardSensor, {})
   )
-  const dataIds = React.useMemo<UniqueIdentifier[]>(() => data?.map(({ id }) => id) || [], [data])
-
-  const loadDevices = React.useCallback(async () => {
-    const devices = await (window as any).api.getDevices()
-    setData(devices)
-  }, [])
+  const dataIds = React.useMemo<UniqueIdentifier[]>(() => devices?.map(({ id }) => id) || [], [devices])
 
   const handleRemoveDevice = React.useCallback(async (id: string) => {
-    const updatedDevices = await (window as any).api.removeDevice(id)
-    setData(updatedDevices)
-  }, [])
+    try {
+      await deleteDoc(doc(db, "projects", projectId, "devices", id))
+    } catch (e) {
+      console.error("Error removing device", e);
+    }
+  }, [projectId])
 
   const columns = React.useMemo(() => makeColumns(handleRemoveDevice), [handleRemoveDevice])
-
-  React.useEffect(() => {
-    // Load initial devices from local IPC store
-    loadDevices()
-
-    // Listen to real-time connection status updates from IPC
-    ;(window as any).api.onDeviceStatus((update: { id: string; status: string }) => {
-      setData((prev) =>
-        prev.map((d) => (d.id === update.id ? { ...d, connectionStatus: update.status as any } : d))
-      )
-    })
-  }, [loadDevices])
 
   const handleAddDevice = async () => {
     const newDevice: DeviceConfig = {
@@ -324,9 +327,16 @@ export function DeviceTable() {
           })
     }
 
-    // Add device locally via IPC, returns updated array immediately
-    const updatedDevices = await (window as any).api.addDevice(newDevice)
-    setData(updatedDevices)
+    // Add device to Firestore
+    try {
+      await addDoc(collection(db, "projects", projectId, "devices"), {
+        ...newDevice,
+        connectionStatus: undefined, // Don't save status to DB
+        id: undefined // Let Firestore generate ID
+      })
+    } catch (e) {
+      console.error("Error adding device", e);
+    }
 
     setIsAddOpen(false)
     // reset form
@@ -347,7 +357,7 @@ export function DeviceTable() {
 
   const table = useTable({
     features,
-    data,
+    data: tableData,
     columns,
     state: {
       sorting,
@@ -368,11 +378,7 @@ export function DeviceTable() {
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (active && over && active.id !== over.id) {
-      setData((data) => {
-        const oldIndex = dataIds.indexOf(active.id)
-        const newIndex = dataIds.indexOf(over.id)
-        return arrayMove(data, oldIndex, newIndex)
-      })
+      // Reordering not persisted to firestore yet
     }
   }
 

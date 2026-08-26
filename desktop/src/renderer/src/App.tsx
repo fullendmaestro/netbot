@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { auth, googleProvider, signInWithPopup, onAuthStateChanged, User } from "./firebase";
+import { ProjectSelection } from "./components/ProjectSelection";
 import { AppSidebar } from "./components/AppSidebar";
 import { SidebarProvider, SidebarInset } from "./components/ui/sidebar";
 import { WorkspaceArea } from "./components/WorkspaceArea";
@@ -10,8 +11,17 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./componen
 
 export function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Tell the main process about the selected project
+    if (selectedProject) {
+      // @ts-ignore
+      window.api.setProjectId(selectedProject);
+    }
+  }, [selectedProject]);
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
@@ -64,6 +74,10 @@ export function App() {
     );
   }
 
+  if (!selectedProject) {
+    return <ProjectSelection user={user} onProjectSelect={setSelectedProject} />;
+  }
+
   return (
     <SidebarProvider
       defaultOpen={false}
@@ -75,11 +89,11 @@ export function App() {
       <SidebarInset>
         <ResizablePanelGroup orientation="horizontal" className="h-full">
           <ResizablePanel defaultSize="75%" minSize="30%">
-            <WorkspaceArea />
+            <WorkspaceArea projectId={selectedProject} />
           </ResizablePanel>
           <ResizableHandle withHandle={false} />
           <ResizablePanel defaultSize="25%" minSize="15%" maxSize="40%">
-            <AssistantPanel />
+            <AssistantPanel user={user} />
           </ResizablePanel>
         </ResizablePanelGroup>
       </SidebarInset>

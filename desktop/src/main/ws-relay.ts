@@ -11,6 +11,7 @@ export class AgentRelayClient {
   private deviceStore: DeviceStore;
   private isReconnecting = false;
   private token: string | null = null;
+  private projectId: string | null = null;
 
   constructor(serverUrl: string, clientId: string, sessionManager: SessionManager, deviceStore: DeviceStore) {
     this.serverUrl = serverUrl;
@@ -29,12 +30,24 @@ export class AgentRelayClient {
     }
   }
 
+  setProjectId(projectId: string | null) {
+    this.projectId = projectId;
+    if (this.ws) {
+      this.ws.close();
+    } else if (this.token && this.projectId) {
+      this.connect();
+    }
+  }
+
   connect() {
     if (!this.token) {
       console.log('[WS Relay] No auth token, delaying connection.');
       return;
     }
-    const wsUrl = `${this.serverUrl}/ws/bridge/${this.clientId}?token=${this.token}`;
+    let wsUrl = `${this.serverUrl}/ws/bridge/${this.clientId}?token=${this.token}`;
+    if (this.projectId) {
+      wsUrl += `&project_id=${this.projectId}`;
+    }
     console.log(`[WS Relay] Connecting to ${wsUrl}...`);
 
     this.ws = new WebSocket(wsUrl);

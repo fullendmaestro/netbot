@@ -7,6 +7,7 @@ from fastapi import WebSocket
 class AgentBridgeManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
+        self.client_projects: Dict[str, str] = {}
         self.pending_rpcs: Dict[str, asyncio.Future] = {}
         self.loop: Optional[asyncio.AbstractEventLoop] = None
 
@@ -22,15 +23,21 @@ class AgentBridgeManager:
                 return self.loop
             raise RuntimeError("FastAPI asyncio event loop has not been captured yet. Ensure Electron WebSocket is connected.")
 
-    async def connect(self, client_id: str, websocket: WebSocket):
+    async def connect(self, client_id: str, websocket: WebSocket, project_id: str = None):
         await websocket.accept()
         self.loop = asyncio.get_running_loop()
         self.active_connections[client_id] = websocket
-        print(f"[WS Bridge] Client connected: {client_id}")
+        if project_id:
+            self.client_projects[client_id] = project_id
+        print(f"[WS Bridge] Client connected: {client_id}, Project: {project_id}")
 
     def disconnect(self, client_id: str):
         self.active_connections.pop(client_id, None)
+        self.client_projects.pop(client_id, None)
         print(f"[WS Bridge] Client disconnected: {client_id}")
+
+    def get_project_id(self, client_id: str) -> str | None:
+        return self.client_projects.get(client_id)
 
     def handle_message(self, client_id: str, data: dict):
         if data.get("type") == "rpc_response":

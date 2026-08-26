@@ -4,9 +4,9 @@ import type { DeviceConfig } from '../shared/types'
 
 const api = {
   setAuthToken: (token: string | null) => ipcRenderer.send('set-auth-token', token),
+  setProjectId: (projectId: string) => ipcRenderer.send('set-project-id', projectId),
+  syncDevices: (devices: DeviceConfig[]) => ipcRenderer.send('sync-devices', devices),
   getDevices: (): Promise<DeviceConfig[]> => ipcRenderer.invoke('get-devices'),
-  addDevice: (device: DeviceConfig): Promise<DeviceConfig[]> => ipcRenderer.invoke('add-device', device),
-  removeDevice: (id: string): Promise<DeviceConfig[]> => ipcRenderer.invoke('remove-device', id),
   connectDevice: (device: DeviceConfig) => ipcRenderer.invoke('connect-device', device),
   disconnectDevice: (sessionId?: string) => ipcRenderer.send('disconnect-device', sessionId),
   sendTerminalInput: (sessionId: string, data: string) => ipcRenderer.send('terminal-input', { sessionId, data }),

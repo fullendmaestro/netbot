@@ -5,7 +5,6 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from google.adk.cli.fast_api import get_fast_api_app
 from ws_manager import bridge_manager
 from api.hello import router as hello_router
-from api.devices import router as devices_router
 
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
 SESSION_SERVICE_URI = "sqlite+aiosqlite:///./sessions.db"
@@ -19,23 +18,22 @@ app: FastAPI = get_fast_api_app(
     web=SERVE_WEB_INTERFACE,
 )
 
-# Mount the HTTP APIs again so the Desktop App can hit /api/devices
+# Mount the HTTP APIs again
 app.include_router(hello_router)
-app.include_router(devices_router)
 
 @app.on_event("startup")
 async def startup_event():
     bridge_manager.set_loop(asyncio.get_running_loop())
 
 @app.websocket("/ws/bridge/{client_id}")
-async def websocket_bridge_endpoint(websocket: WebSocket, client_id: str, token: str):
+async def websocket_bridge_endpoint(websocket: WebSocket, client_id: str, token: str, project_id: str = None):
     from api.auth import verify_ws_token
     try:
         verify_ws_token(token)
     except Exception as e:
         await websocket.close(code=1008, reason=str(e))
         return
-    await bridge_manager.connect(client_id, websocket)
+    await bridge_manager.connect(client_id, websocket, project_id)
     try:
         while True:
             data = await websocket.receive_json()

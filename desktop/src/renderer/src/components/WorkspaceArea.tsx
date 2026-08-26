@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useDevices } from "../hooks/useDevices";
 import { SummaryCards } from "./SummaryCards";
 import { DeviceTable } from "./DeviceTable";
 import { TerminalPanel } from "./TerminalPanel";
@@ -17,9 +18,11 @@ interface TerminalTab {
   device: DeviceConfig;
 }
 
-export function WorkspaceArea() {
+export function WorkspaceArea({ projectId }: { projectId: string }) {
   const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  
+  const { devices, loading } = useDevices(projectId);
 
   useEffect(() => {
     const handleOpenTerminalTab = (e: Event) => {
@@ -63,8 +66,8 @@ export function WorkspaceArea() {
         <Card className="flex flex-col flex-1 h-full rounded-xl overflow-hidden bg-background border gap-0 p-0">
           <div className="flex flex-1 flex-col h-full overflow-y-auto">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 md:px-6">
-              <SummaryCards />
-              <DeviceTable />
+              <SummaryCards devices={devices} />
+              <DeviceTable projectId={projectId} devices={devices} loading={loading} />
             </div>
           </div>
         </Card>

@@ -14,24 +14,26 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { CommandDialog } from './ui/command'
 import { toolkit } from './tools/toolkit'
+import { User } from '../firebase'
 
 const ADK_URL = 'http://localhost:8000'
 const APP_NAME = 'copilot'
-const USER_ID = 'user_1'
 
-const { adapter, load } = createAdkSessionAdapter({
-  apiUrl: ADK_URL,
-  appName: APP_NAME,
-  userId: USER_ID
-})
-
-export function AssistantPanel() {
+export function AssistantPanel({ user }: { user: User }) {
   const [historyOpen, setHistoryOpen] = useState(false)
+  
+  // Initialize adapter with dynamic user
+  const { adapter, load } = createAdkSessionAdapter({
+    apiUrl: ADK_URL,
+    appName: APP_NAME,
+    userId: user.uid
+  });
+
   const runtime = useAdkRuntime({
     stream: createAdkStream({
       api: ADK_URL,
       appName: APP_NAME,
-      userId: USER_ID
+      userId: user.uid
     }),
     sessionAdapter: adapter,
     load

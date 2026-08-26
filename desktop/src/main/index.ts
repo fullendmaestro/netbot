@@ -10,7 +10,6 @@ import icon from '../../resources/icon.png?asset'
 let sessionManager: SessionManager;
 let deviceStore: DeviceStore;
 let relayClient: AgentRelayClient;
-let apiClient: ApiClient;
 
 const AGENT_API_URL = process.env.AGENT_API_URL || 'http://127.0.0.1:8000';
 const AGENT_WS_URL = process.env.AGENT_WS_URL || 'ws://127.0.0.1:8000';
@@ -57,7 +56,6 @@ function createWindow(): void {
   // Initialize Managers
   sessionManager = new SessionManager(mainWindow);
   deviceStore = new DeviceStore();
-  apiClient = new ApiClient(AGENT_API_URL);
   
   relayClient = new AgentRelayClient(AGENT_WS_URL, CLIENT_ID, sessionManager, deviceStore);
   // relayClient.connect(); will happen when token is provided
@@ -70,29 +68,19 @@ app.whenReady().then(() => {
   createWindow()
 
   ipcMain.on('set-auth-token', (_, token) => {
-    apiClient.setToken(token);
     relayClient.setToken(token);
-    
-    // Fetch from cloud DB and cache locally once authenticated
-    if (token) {
-      apiClient.fetchRemoteDevices().then(remoteDevices => {
-        deviceStore.syncFromRemote(remoteDevices);
-      }).catch(err => console.error("Failed to sync initial devices:", err));
-    }
   });
 
-  // IPC Handlers: HTTP to Cloud -> Cache Locally -> Return to UI
+  ipcMain.on('set-project-id', (_, projectId) => {
+    relayClient.setProjectId(projectId);
+  });
+
+  ipcMain.on('sync-devices', (_, devices) => {
+    deviceStore.syncFromRemote(devices);
+  });
+
+  // IPC Handlers
   ipcMain.handle('get-devices', () => deviceStore.getDevices());
-  
-  ipcMain.handle('add-device', async (_, device) => {
-    await apiClient.addRemoteDevice(device);
-    return deviceStore.addDevice(device);
-  });
-
-  ipcMain.handle('remove-device', async (_, id) => {
-    await apiClient.removeRemoteDevice(id);
-    return deviceStore.removeDevice(id);
-  });
 
   ipcMain.handle('connect-device', async (_, device) => sessionManager.connect(device));
   ipcMain.on('disconnect-device', (_, sessionId) => sessionManager.disconnect(sessionId));

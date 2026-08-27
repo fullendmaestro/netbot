@@ -1,34 +1,45 @@
-# desktop
+# Netbot Desktop App
 
-An Electron application with React and TypeScript
+The frontend application for Netbot, built with Electron, React, TypeScript, and TailwindCSS.
 
-## Recommended IDE Setup
+## Overview
 
-- [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+The desktop app serves two primary purposes:
+1. **User Interface**: Provides the chat interface to interact with the Netbot AI assistant and view managed devices.
+2. **Local Execution Engine**: Maintains physical and network connectivity (Serial, SSH, Telnet) to your infrastructure devices from your local machine.
 
-## Project Setup
+When the agent needs to execute a command on a device, it writes the command to a Firebase Firestore database. The desktop app continuously listens to this database, securely executes the requested command on the target device via the user's local network/hardware, and returns the output to Firestore for the agent to process.
 
-### Install
+## Tech Stack
+- Electron
+- React (via Vite)
+- TailwindCSS
+- Firebase Firestore (for syncing state with the Python agent)
+- xterm.js (for terminal rendering)
+
+## Setup and Development
+
+### Install Dependencies
 
 ```bash
-$ npm install
+bun install
 ```
 
-### Development
+### Start Development Server
 
 ```bash
-$ npm run dev
+bun run dev
 ```
 
-### Build
+### Build for Production
 
 ```bash
-# For windows
-$ npm run build:win
+# For Windows
+bun run build:win
 
 # For macOS
-$ npm run build:mac
+bun run build:mac
 
 # For Linux
-$ npm run build:linux
+bun run build:linux
 ```

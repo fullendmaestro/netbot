@@ -5,6 +5,8 @@ import { SessionManager } from './session-manager'
 import { DeviceStore } from './device-store'
 import icon from '../../resources/icon.png?asset'
 
+const GNS3_SERVER_URL = 'http://34.121.48.145:3080'
+
 let sessionManager: SessionManager;
 let deviceStore: DeviceStore;
 
@@ -17,7 +19,8 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      webviewTag: true
     }
   })
 
@@ -87,6 +90,40 @@ function createWindow(): void {
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.electron')
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
+
+  app.on('web-contents-created', (_, contents) => {  
+  if (contents.getType() === 'webview') {  
+    // contents.userAgent can be undefined at creation time before first navigation  
+    const currentUserAgent = contents.userAgent || session.defaultSession.getUserAgent()  
+    const spoofedUserAgent = currentUserAgent  
+      .replace(/ electron\/[0-9\.]+/i, '')  
+      .replace(/Electron\/[0-9\.]+/i, '')  
+    contents.setUserAgent(spoofedUserAgent)  
+  
+    const s = contents.session  
+  
+    s.webRequest.onHeadersReceived({ urls: [`${GNS3_SERVER_URL}/*`] }, (details, callback) => {  
+      const responseHeaders = { ...details.responseHeaders }  
+      delete responseHeaders['x-frame-options']  
+      delete responseHeaders['X-Frame-Options']  
+      delete responseHeaders['content-security-policy']  
+      delete responseHeaders['Content-Security-Policy']  
+      callback({ cancel: false, responseHeaders })  
+    })  
+  
+    s.webRequest.onBeforeRequest((details, callback) => {  
+      if (  
+        details.url.includes('/static/web-ui/server/1/project/') &&  
+        (details.url.endsWith('.js') || details.url.endsWith('.css'))  
+      ) {  
+        const filename = details.url.split('/').pop()  
+        callback({ redirectURL: `${GNS3_SERVER_URL}/static/web-ui/${filename}` })  
+        return  
+      }  
+      callback({})  
+    })  
+  }  
+})
   
   createWindow()
 

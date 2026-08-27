@@ -7,7 +7,7 @@ import firebase_admin
 from api.hello import router as hello_router
 
 if not firebase_admin._apps:
-    firebase_admin.initialize_app()
+    firebase_admin.initialize_app(options={'projectId': 'netbot-603c0'})
 
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
 SESSION_SERVICE_URI = "sqlite+aiosqlite:///./sessions.db"

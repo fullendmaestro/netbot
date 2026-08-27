@@ -13,6 +13,7 @@ import { useCommandListener } from "./hooks/useCommandListener";
 export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<string>('Devices');
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -88,11 +89,11 @@ export function App() {
         "--sidebar-width": "16rem",
       } as React.CSSProperties}
     >
-      <AppSidebar variant="inset" />
+      <AppSidebar variant="inset" activeView={activeView} onViewChange={setActiveView} />
       <SidebarInset>
         <ResizablePanelGroup orientation="horizontal" className="h-full">
           <ResizablePanel defaultSize="75%" minSize="30%">
-            <WorkspaceArea projectId={selectedProject} />
+            <WorkspaceArea projectId={selectedProject} activeView={activeView.toLowerCase()} />
           </ResizablePanel>
           <ResizableHandle withHandle={false} />
           <ResizablePanel defaultSize="25%" minSize="15%" maxSize="40%">

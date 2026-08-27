@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { SessionManager } from './session-manager'
@@ -25,6 +25,11 @@ function createWindow(): void {
     mainWindow.show()
   })
 
+  // Spoof UserAgent to avoid GNS3 Web UI's Electron detection which breaks asset paths
+  const defaultUserAgent = mainWindow.webContents.userAgent;
+  const spoofedUserAgent = defaultUserAgent.replace(/ electron\/[0-9\.]+/i, '').replace(/Electron\/[0-9\.]+/i, '');
+  mainWindow.webContents.userAgent = spoofedUserAgent;
+
   mainWindow.webContents.setWindowOpenHandler((details) => {
     // Allow Firebase Auth and Google Sign-in URLs to open as internal popups
     if (
@@ -49,6 +54,34 @@ function createWindow(): void {
   // Initialize Managers
   sessionManager = new SessionManager(mainWindow);
   deviceStore = new DeviceStore();
+
+  // Strip headers that prevent iframe embedding for GNS3
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const responseHeaders = { ...details.responseHeaders };
+    
+    // Remove both lowercase and uppercase variations just in case
+    delete responseHeaders['x-frame-options'];
+    delete responseHeaders['X-Frame-Options'];
+    delete responseHeaders['content-security-policy'];
+    delete responseHeaders['Content-Security-Policy'];
+    
+    callback({
+      cancel: false,
+      responseHeaders
+    });
+  });
+
+  // Failsafe: if the GNS3 iframe accidentally requests JS/CSS assets relative to the project URL
+  // due to a broken <base> tag, redirect them to the correct /static/web-ui/ root.
+  session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
+    if (details.url.includes('/static/web-ui/server/1/project/') && (details.url.endsWith('.js') || details.url.endsWith('.css'))) {
+      const filename = details.url.split('/').pop();
+      const redirectURL = `http://34.121.48.145:3080/static/web-ui/${filename}`;
+      callback({ redirectURL });
+      return;
+    }
+    callback({});
+  });
 }
 
 app.whenReady().then(() => {

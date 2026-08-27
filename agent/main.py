@@ -5,6 +5,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from google.adk.cli.fast_api import get_fast_api_app
 import firebase_admin
 from api.hello import router as hello_router
+from api.gns3 import router as gns3_router
 
 if not firebase_admin._apps:
     firebase_admin.initialize_app(options={'projectId': 'netbot-603c0'})
@@ -23,6 +24,7 @@ app: FastAPI = get_fast_api_app(
 
 # Mount the HTTP APIs again
 app.include_router(hello_router)
+app.include_router(gns3_router)
 
 
 

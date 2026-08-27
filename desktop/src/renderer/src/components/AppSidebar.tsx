@@ -47,7 +47,14 @@ const data = {
   ],
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({
+  activeView,
+  onViewChange,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & {
+  activeView?: string
+  onViewChange?: (view: string) => void
+}) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -69,18 +76,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="gap-2">
-              {data.navMain.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    tooltip={item.title}
-                    isActive={item.isActive}
-                    render={<a href={item.url} />}
-                    className="h-10! w-10! justify-center rounded-md transition-colors hover:bg-accent/50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground [&>svg]:size-6! [&>svg]:stroke-[1.5]"
-                  >
-                    {item.icon}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {data.navMain.map((item) => {
+                const isActive = activeView === item.title;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      tooltip={item.title}
+                      isActive={isActive}
+                      onClick={() => onViewChange?.(item.title)}
+                      className="h-10! w-10! justify-center rounded-md transition-colors hover:bg-accent/50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground [&>svg]:size-6! [&>svg]:stroke-[1.5]"
+                    >
+                      {item.icon}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

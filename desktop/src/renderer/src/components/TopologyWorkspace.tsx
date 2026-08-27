@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { doc, onSnapshot, setDoc, collection } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { Card } from "./ui/card";
@@ -15,6 +15,54 @@ export function TopologyWorkspace({ projectId }: { projectId: string }) {
   
   const [newProjectName, setNewProjectName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+
+  const webviewRef = useRef<any>(null);
+  const hasBootstrapped = useRef(false);
+
+  useEffect(() => {
+    const webview = webviewRef.current;
+    if (!webview) {
+      hasBootstrapped.current = false;
+      return;
+    }
+
+    const handleNavigate = (e: any) => {
+      // GNS3 Angular UI boots at / and then redirects to /servers or /projects once authenticated/ready
+      if (e.url.includes('/servers') || e.url.includes('/projects')) {
+        if (!hasBootstrapped.current) {
+          hasBootstrapped.current = true;
+          if (selectedProjectId) {
+            const targetUrl = `${GNS3_SERVER_URL.replace(/\/$/, '')}/static/web-ui/server/1/project/${selectedProjectId}`;
+            webview.loadURL(targetUrl);
+          }
+        }
+      }
+    };
+
+    webview.addEventListener('did-navigate', handleNavigate);
+    webview.addEventListener('did-navigate-in-page', handleNavigate);
+
+    return () => {
+      webview.removeEventListener('did-navigate', handleNavigate);
+      webview.removeEventListener('did-navigate-in-page', handleNavigate);
+    };
+  }, [selectedProjectId]);
+
+  useEffect(() => {
+    const webview = webviewRef.current;
+    if (!webview || !selectedProjectId) return;
+
+    if (hasBootstrapped.current) {
+      const targetUrl = `${GNS3_SERVER_URL.replace(/\/$/, '')}/static/web-ui/server/1/project/${selectedProjectId}`;
+      try {
+        if (webview.getURL() !== targetUrl) {
+          webview.loadURL(targetUrl);
+        }
+      } catch (e) {
+        webview.loadURL(targetUrl);
+      }
+    }
+  }, [selectedProjectId]);
 
   useEffect(() => {
     // Just a small delay to prevent layout shift while checking if anything needs loading
@@ -95,8 +143,9 @@ export function TopologyWorkspace({ projectId }: { projectId: string }) {
       
       <div className="flex-1 relative bg-black">
         {selectedProjectId ? (
-          <iframe 
-            src={`${GNS3_SERVER_URL.replace(/\/$/, '')}/static/web-ui/server/1/project/${selectedProjectId}`}
+          <webview
+            ref={webviewRef}
+            src={GNS3_SERVER_URL}
             className="w-full h-full border-0 absolute inset-0"
             title="GNS3 Web UI"
           />

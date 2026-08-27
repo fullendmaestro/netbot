@@ -314,42 +314,25 @@ export class SessionManager {
    * Retrieves an available background session for the agent, or creates a new one.
    */
   async getOrSpawnAgentSession(device: DeviceConfig): Promise<Session> {
-    if (device.type === 'ssh') {
-      // Find an existing hidden SSH session that is NOT busy
-      const availableSession = Array.from(this.sessions.values()).find(
-        (s) => s.deviceId === device.id && s.type === 'ssh' && s.isHidden && !s.isBusy
-      );
-      if (availableSession) {
-        return availableSession;
-      }
-      
-      // If none available, spawn a new one
+    // Find ANY existing session for this device
+    let session = Array.from(this.sessions.values()).find(
+      (s) => s.deviceId === device.id && s.type === device.type
+    );
+
+    if (!session) {
+      // If none available, spawn a new hidden one
       const sessionId = randomUUID();
-      await this.connectSSH(sessionId, device, true);
-      const newSession = this.sessions.get(sessionId)!;
-      return newSession;
-    } else if (device.type === 'telnet') {
-      const availableSession = Array.from(this.sessions.values()).find(
-        (s) => s.deviceId === device.id && s.type === 'telnet' && s.isHidden && !s.isBusy
-      );
-      if (availableSession) {
-        return availableSession;
-      }
-      const sessionId = randomUUID();
-      await this.connectTelnet(sessionId, device, true);
-      const newSession = this.sessions.get(sessionId)!;
-      return newSession;
-    } else {
-      // For Serial, we can only have ONE session total.
-      let session = this.getSerialSession(device.id);
-      if (!session) {
-        // Create a hidden one if it doesn't exist
-        const sessionId = randomUUID();
+      if (device.type === 'ssh') {
+        await this.connectSSH(sessionId, device, true);
+      } else if (device.type === 'telnet') {
+        await this.connectTelnet(sessionId, device, true);
+      } else {
         await this.connectSerial(sessionId, device, true);
-        session = this.sessions.get(sessionId)!;
       }
-      return session;
+      session = this.sessions.get(sessionId)!;
     }
+    
+    return session;
   }
 
   revealAgentSessionByDevice(deviceId: string): { sessionId: string, deviceConfig: DeviceConfig } | null {
@@ -369,14 +352,14 @@ export class SessionManager {
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error(`No active session found for session ID: ${sessionId}`);
 
-    if ((session.type === 'serial' || session.type === 'telnet') && session.isBusy) {
+    if (session.isBusy) {
       throw new Error(`Device is currently busy executing another command.`);
     }
 
     session.isBusy = true;
 
-    // If it's a serial port and NOT hidden, let the user know we are locking it
-    if ((session.type === 'serial' || session.type === 'telnet') && !session.isHidden) {
+    // If it's NOT hidden, let the user know we are locking it
+    if (!session.isHidden) {
       this.window?.webContents.send('terminal-data', {
         sessionId,
         data: `\r\n\x1b[33m[Agent locking device to execute command...]\x1b[0m\r\n`,
@@ -388,8 +371,10 @@ export class SessionManager {
         let output = '';
         
         const cleanCommand = command.replace(/[\r\n]+$/, '');
-        // Use \r\n for Windows SSH & Cisco PTY compatibility
-        const formattedCommand = `${cleanCommand}\r\n`;
+        // For console ports (Telnet/Serial), send a wakeup newline first to clear any stuck prompts
+        const formattedCommand = (session.type === 'serial' || session.type === 'telnet') 
+            ? `\r\n${cleanCommand}\r\n` 
+            : `${cleanCommand}\r\n`;
 
         let inactivityTimer: NodeJS.Timeout | null = null;
         let hardTimeoutTimer: NodeJS.Timeout | null = null;
@@ -443,7 +428,7 @@ export class SessionManager {
       });
     } finally {
       session.isBusy = false;
-      if ((session.type === 'serial' || session.type === 'telnet') && !session.isHidden) {
+      if (!session.isHidden) {
         this.window?.webContents.send('terminal-data', {
           sessionId,
           data: `\r\n\x1b[32m[Agent command complete. Lock released.]\x1b[0m\r\n`,

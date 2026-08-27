@@ -21,11 +21,13 @@ async def execute_remote_command(project_id: str, device_identifier: str, comman
     
     # Poll for completion
     start_time = time.time()
+    print(f"[Dispatcher] Created command {doc_ref.id}. Waiting for completion...")
     while time.time() - start_time < timeout:
         doc = doc_ref.get()
         if doc.exists:
             data = doc.to_dict()
             status = data.get('status')
+            print(f"[Dispatcher] {doc_ref.id} status is currently: {status}")
             if status == 'completed':
                 return data.get('output', '')
             elif status == 'error':

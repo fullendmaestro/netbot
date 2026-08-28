@@ -5,13 +5,14 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { useStore } from "../store";
 
 const GNS3_SERVER_URL = import.meta.env.VITE_GNS3_SERVER_URL;
 
 export function TopologyWorkspace({ projectId }: { projectId: string }) {
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<any[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const { selectedGns3Project, setSelectedGns3Project } = useStore();
   
   const [newProjectName, setNewProjectName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -31,8 +32,8 @@ export function TopologyWorkspace({ projectId }: { projectId: string }) {
       if (e.url.includes('/servers') || e.url.includes('/projects')) {
         if (!hasBootstrapped.current) {
           hasBootstrapped.current = true;
-          if (selectedProjectId) {
-            const targetUrl = `${GNS3_SERVER_URL.replace(/\/$/, '')}/static/web-ui/server/1/project/${selectedProjectId}`;
+          if (selectedGns3Project) {
+            const targetUrl = `${GNS3_SERVER_URL.replace(/\/$/, '')}/static/web-ui/server/1/project/${selectedGns3Project}`;
             webview.loadURL(targetUrl);
           }
         }
@@ -46,14 +47,14 @@ export function TopologyWorkspace({ projectId }: { projectId: string }) {
       webview.removeEventListener('did-navigate', handleNavigate);
       webview.removeEventListener('did-navigate-in-page', handleNavigate);
     };
-  }, [selectedProjectId]);
+  }, [selectedGns3Project]);
 
   useEffect(() => {
     const webview = webviewRef.current;
-    if (!webview || !selectedProjectId) return;
+    if (!webview || !selectedGns3Project) return;
 
     if (hasBootstrapped.current) {
-      const targetUrl = `${GNS3_SERVER_URL.replace(/\/$/, '')}/static/web-ui/server/1/project/${selectedProjectId}`;
+      const targetUrl = `${GNS3_SERVER_URL.replace(/\/$/, '')}/static/web-ui/server/1/project/${selectedGns3Project}`;
       try {
         if (webview.getURL() !== targetUrl) {
           webview.loadURL(targetUrl);
@@ -62,7 +63,7 @@ export function TopologyWorkspace({ projectId }: { projectId: string }) {
         webview.loadURL(targetUrl);
       }
     }
-  }, [selectedProjectId]);
+  }, [selectedGns3Project]);
 
   useEffect(() => {
     // Just a small delay to prevent layout shift while checking if anything needs loading
@@ -100,7 +101,7 @@ export function TopologyWorkspace({ projectId }: { projectId: string }) {
       }
       
       const created = await resp.json();
-      setSelectedProjectId(created.id);
+      setSelectedGns3Project(created.id);
       setNewProjectName("");
     } catch (e) {
       console.error(e);
@@ -119,8 +120,8 @@ export function TopologyWorkspace({ projectId }: { projectId: string }) {
           <h2 className="font-semibold text-lg">Topology</h2>
           <select 
             className="bg-zinc-900 border border-zinc-700 rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 min-w-[200px]"
-            value={selectedProjectId || ""}
-            onChange={(e) => setSelectedProjectId(e.target.value)}
+            value={selectedGns3Project || ""}
+            onChange={(e) => setSelectedGns3Project(e.target.value)}
           >
             <option value="">Select a Project...</option>
             {projects.map(p => (
@@ -142,7 +143,7 @@ export function TopologyWorkspace({ projectId }: { projectId: string }) {
       </div>
       
       <div className="flex-1 relative bg-black">
-        {selectedProjectId ? (
+        {selectedGns3Project ? (
           <webview
             ref={webviewRef}
             src={GNS3_SERVER_URL}

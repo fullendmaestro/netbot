@@ -15,33 +15,40 @@ import { Button } from './ui/button'
 import { CommandDialog } from './ui/command'
 import { toolkit } from './tools/toolkit'
 import { User } from '../firebase'
+import { useStore } from '../store'
 
 const ADK_URL = 'http://localhost:8000'
-const APP_NAME = 'copilot'
 
 export function AssistantPanel({ user, projectId }: { user: User, projectId: string }) {
   const [historyOpen, setHistoryOpen] = useState(false)
   
+  const { activeView, selectedGns3Project } = useStore();
+  const currentAppName = activeView.toLowerCase() === 'topology' ? 'gns3' : 'copilot';
+  
   // Initialize adapter with dynamic user
   const { adapter, load } = createAdkSessionAdapter({
     apiUrl: ADK_URL,
-    appName: APP_NAME,
+    appName: currentAppName,
     userId: user.uid
   });
 
   let injected = false;
   const baseStream = createAdkStream({
     api: ADK_URL,
-    appName: APP_NAME,
+    appName: currentAppName,
     userId: user.uid
   });
 
   const stream: typeof baseStream = (messages, config) => {
     if (!injected) {
       injected = true;
+      const stateDelta: Record<string, any> = { ...config?.stateDelta, project_id: projectId };
+      if (activeView.toLowerCase() === 'topology' && selectedGns3Project) {
+        stateDelta.gns3_project_id = selectedGns3Project;
+      }
       config = { 
         ...config, 
-        stateDelta: { ...config?.stateDelta, project_id: projectId } 
+        stateDelta
       };
     }
     return baseStream(messages, config);

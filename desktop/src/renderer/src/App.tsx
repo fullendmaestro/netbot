@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useStore } from "./store";
 import { auth, googleProvider, signInWithPopup, onAuthStateChanged, User } from "./firebase";
 import { ProjectSelection } from "./components/ProjectSelection";
 import { AppSidebar } from "./components/AppSidebar";
@@ -11,9 +12,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./componen
 import { useCommandListener } from "./hooks/useCommandListener";
 
 export function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [selectedProject, setSelectedProject] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<string>('Devices');
+  const { user, setUser, selectedProject, setSelectedProject, activeView, setActiveView } = useStore();
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 

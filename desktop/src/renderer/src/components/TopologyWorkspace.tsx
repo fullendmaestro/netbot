@@ -6,7 +6,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
-const GNS3_SERVER_URL = "http://34.121.48.145:3080";
+const GNS3_SERVER_URL = import.meta.env.VITE_GNS3_SERVER_URL;
 
 export function TopologyWorkspace({ projectId }: { projectId: string }) {
   const [loading, setLoading] = useState(true);

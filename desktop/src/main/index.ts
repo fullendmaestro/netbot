@@ -5,7 +5,7 @@ import { SessionManager } from './session-manager'
 import { DeviceStore } from './device-store'
 import icon from '../../resources/icon.png?asset'
 
-const GNS3_SERVER_URL = 'http://34.121.48.145:3080'
+const GNS3_SERVER_URL = import.meta.env.VITE_GNS3_SERVER_URL
 
 let sessionManager: SessionManager;
 let deviceStore: DeviceStore;

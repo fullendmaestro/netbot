@@ -57,7 +57,7 @@ export function AssistantPanel({ user, projectId }: { user: User, projectId: str
 
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
-      <Card className="shrink-0 flex flex-col rounded-xl overflow-hidden border gap-0 p-0 h-[calc(100svh-1rem)]">
+      <Card className="shrink-0 flex flex-col rounded-xl overflow-hidden border gap-0 p-0 h-full">
         <CardHeader className="flex h-12 flex-row items-center justify-between px-3 py-2 border-b bg-muted/50 rounded-t-xl rounded-b-none">
           <CardTitle className="flex items-center gap-1.5 text-sm font-medium">
             Netbot Assistant

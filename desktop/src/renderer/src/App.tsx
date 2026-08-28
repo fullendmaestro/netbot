@@ -18,7 +18,6 @@ export function App() {
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Tell the main process about the selected project
     if (selectedProject) {
       // @ts-ignore
       window.api.setProjectId(selectedProject);
@@ -85,13 +84,14 @@ export function App() {
   return (
     <SidebarProvider
       defaultOpen={false}
+      className="h-screen overflow-hidden"
       style={{
-        "--sidebar-width": "16rem",
+        "--sidebar-width": "48px",
       } as React.CSSProperties}
     >
       <AppSidebar variant="inset" activeView={activeView} onViewChange={setActiveView} />
       <SidebarInset>
-        <ResizablePanelGroup orientation="horizontal" className="h-full">
+        <ResizablePanelGroup orientation="horizontal" className="h-full bg-sidebar">
           <ResizablePanel defaultSize="75%" minSize="30%">
             <WorkspaceArea projectId={selectedProject} activeView={activeView.toLowerCase()} />
           </ResizablePanel>

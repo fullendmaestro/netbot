@@ -22,10 +22,3 @@ async def verify_token(credentials: HTTPAuthorizationCredentials = Security(secu
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-def verify_ws_token(token: str):
-    """Verifies a token provided via WebSocket connection."""
-    try:
-        return auth.verify_id_token(token)
-    except Exception as e:
-        raise ValueError(f"Invalid token: {e}")

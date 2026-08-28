@@ -5,6 +5,7 @@ import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
+  SidebarFooter,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -56,12 +57,12 @@ export function AppSidebar({
   onViewChange?: (view: string) => void
 }) {
   return (
-    <Sidebar collapsible="icon" {...props}>
+    <Sidebar collapsible="none" {...props} className="h-svh flex flex-col">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              className="data-[slot=sidebar-menu-button]:p-1.5! h-10! w-10! justify-center"
+              className="justify-center mt-2"
               render={<a href="#" />}
               tooltip="Netbot"
             >
@@ -72,10 +73,9 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Main Navigation */}
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-2">
+            <SidebarMenu className="gap-3 mt-4">
               {data.navMain.map((item) => {
                 const isActive = activeView === item.title;
                 return (
@@ -84,7 +84,8 @@ export function AppSidebar({
                       tooltip={item.title}
                       isActive={isActive}
                       onClick={() => onViewChange?.(item.title)}
-                      className="h-10! w-10! justify-center rounded-md transition-colors hover:bg-accent/50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground [&>svg]:size-6! [&>svg]:stroke-[1.5]"
+                      // Reduced icon size from size-6! to size-5!
+                      className="justify-center rounded-md transition-colors hover:bg-accent/50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground [&>svg]:size-5! [&>svg]:stroke-[1.5]"
                     >
                       {item.icon}
                     </SidebarMenuButton>
@@ -94,9 +95,10 @@ export function AppSidebar({
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+      </SidebarContent>
 
-        {/* Secondary Navigation */}
-        <SidebarGroup className="mt-auto">
+      <SidebarFooter className="mt-auto pb-4">
+        <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="gap-2">
               {data.navSecondary.map((item) => (
@@ -104,7 +106,8 @@ export function AppSidebar({
                   <SidebarMenuButton
                     render={<a href={item.url} />}
                     tooltip={item.title}
-                    className="h-10! w-10! justify-center rounded-md transition-colors hover:bg-accent/50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground [&>svg]:size-6! [&>svg]:stroke-[1.5]"
+                    // Reduced icon size from size-6! to size-5!
+                    className="justify-center rounded-md transition-colors hover:bg-accent/50 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground [&>svg]:size-5! [&>svg]:stroke-[1.5]"
                   >
                     {item.icon}
                   </SidebarMenuButton>
@@ -113,7 +116,7 @@ export function AppSidebar({
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-      </SidebarContent>
+      </SidebarFooter>
     </Sidebar>
   )
 }

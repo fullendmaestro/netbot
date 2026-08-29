@@ -11,6 +11,8 @@
     "types": [
       "electron-vite/node",
       "node"
-    ]
+    ],
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
   }
 }

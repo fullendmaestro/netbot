@@ -4,7 +4,9 @@
     "paths": {
       "@/*": ["src/renderer/src/*"],
       "@renderer/*": ["src/renderer/src/*"]
-    }
+    },
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
   },
   "files": [],
   "references": [{ "path": "./tsconfig.node.json" }, { "path": "./tsconfig.web.json" }]

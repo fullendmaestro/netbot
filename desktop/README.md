@@ -6,9 +6,9 @@ The frontend application for Netbot, built with Electron, React, TypeScript, and
 
 The desktop app serves two primary purposes:
 1. **User Interface**: Provides the chat interface to interact with the Netbot AI assistant and view managed devices.
-2. **Local Execution Engine**: Maintains physical and network connectivity (Serial, SSH, Telnet) to your infrastructure devices from your local machine.
+2. **Terminal Manager**: Maintains physical and network connectivity (Serial, SSH, Telnet) for manual interactions with your infrastructure devices from your local machine.
 
-When the agent needs to execute a command on a device, it writes the command to a Firebase Firestore database. The desktop app continuously listens to this database, securely executes the requested command on the target device via the user's local network/hardware, and returns the output to Firestore for the agent to process.
+The desktop app communicates with the Python agent via API endpoints to proxy LibreNMS monitoring data and orchestrate device registration. Unlike earlier versions, the desktop app does *not* execute commands on behalf of the agent; the agent connects to devices directly.
 
 ## Tech Stack
 - Electron

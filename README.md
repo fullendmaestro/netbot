@@ -6,8 +6,8 @@ Netbot is an intelligent IT infrastructure assistant designed to help engineers 
 
 The project consists of two main components that communicate via Firebase Firestore:
 
-1. **Desktop App (`/desktop`)**: An Electron-based desktop application built with React, TypeScript, and TailwindCSS. It provides the user interface for the assistant and handles direct, local connections (SSH, Telnet, Serial) to network devices.
-2. **Agent Backend (`/agent`)**: A Python-based backend powered by the Google ADK (Agent Development Kit). It hosts the LLM agent, processes natural language requests, and dispatches terminal commands to the desktop app via Firestore.
+1. **Desktop App (`/desktop`)**: An Electron-based desktop application built with React, TypeScript, and TailwindCSS. It provides the user interface for the assistant, proxies LibreNMS data from the agent, and handles manual local terminal connections (SSH, Telnet, Serial) to network devices.
+2. **Agent Backend (`/agent`)**: A Python-based backend powered by the Google ADK (Agent Development Kit). It hosts the LLM agent, processes natural language requests, proxies LibreNMS REST API requests, and executes terminal commands directly against network devices via Nornir and Netmiko.
 
 ## Prerequisites
 
@@ -113,6 +113,8 @@ sudo su
 
 - **Intelligent Assistant**: Interact with your network devices using natural language.
 
-- **Local Execution**: Terminal commands (SSH, Telnet, Serial) are executed locally on your machine via the Electron app, ensuring secure access to your private network infrastructure.
+- **Intelligent Assistant**: Interact with your network devices using natural language.
 
-- **Real-time Sync**: Device configurations and command executions are synchronized in real-time across the platform using Firestore.
+- **Direct Execution**: The Python agent executes terminal commands (SSH, Telnet) directly against your infrastructure securely.
+
+- **Real-time Sync**: Device states are synced through Firebase Firestore, while detailed monitoring data is retrieved dynamically from LibreNMS via agent API proxies.

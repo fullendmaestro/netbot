@@ -5,11 +5,11 @@ The intelligence engine for Netbot, built using Python and the Google Agent Deve
 ## Overview
 
 The backend hosts the LLM-powered assistant. When a user requests an action (e.g., "Check the routing table on R1-Core"):
-1. The agent fetches the connection details for the requested device from Firebase Firestore.
-2. The agent determines the appropriate terminal commands to execute.
-3. The agent dispatches these commands to the `commands` collection in Firestore.
-4. The desktop app (which has local connectivity to the device) executes the command and posts the output back to Firestore.
-5. The agent reads the output, analyzes it, and responds to the user.
+1. The agent proxy endpoints interact with LibreNMS to sync device states or retrieve monitoring data.
+2. The agent fetches the connection details for the requested device from Firebase Firestore.
+3. The agent determines the appropriate terminal commands to execute.
+4. The agent executes the commands directly against the device over SSH or Telnet using Nornir and Netmiko.
+5. The agent analyzes the terminal output and responds to the user.
 
 ## Tech Stack
 - Python

@@ -7,17 +7,15 @@ read-only command via netmiko_send_command.
 """
 from __future__ import annotations
 
-from nornir import InitNornir
-from nornir.core.plugins.inventory import InventoryPluginRegister
-from nornir_utils.plugins.inventory.dict import DictInventory
+from nornir import Nornir
+from nornir.core.configuration import Config
+from nornir.core.inventory import Inventory
 from nornir_netmiko.tasks import netmiko_send_command
 from nornir.core.task import Task, Result
 from netmiko.exceptions import (
     NetmikoAuthenticationException,
     NetmikoTimeoutException,
 )
-
-InventoryPluginRegister.register("DictInventory", DictInventory)
 
 # LibreNMS os → Netmiko device_type mapping
 OS_MAP: dict[str, str] = {
@@ -43,7 +41,6 @@ def _resolve_device_type(connection_type: str, os_hint: str | None) -> str:
     """
     base = OS_MAP.get((os_hint or "").lower(), "autodetect")
     if connection_type == "telnet":
-        # Netmiko telnet device types use _telnet suffix
         return base if base == "autodetect" else f"{base}_telnet"
     return base
 
@@ -90,18 +87,10 @@ def run_command(connection: dict, os_hint: str | None, command: str) -> str:
         }
     }
 
-    nr = InitNornir(
-        inventory={
-            "plugin": "DictInventory",
-            "options": {
-                "hosts": hosts,
-                "groups": {},
-                "defaults": {},
-            },
-        },
-        runner={"plugin": "serial"},
-        logging={"enabled": False},
-    )
+    # Initialize Nornir natively using the core Inventory and Config classes
+    inventory = Inventory(hosts=hosts, groups={}, defaults={})
+    config = Config(runner={"plugin": "serial"}, logging={"enabled": False})
+    nr = Nornir(inventory=inventory, config=config, dry_run=False)
 
     result = nr.run(task=netmiko_send_command, command_string=command)
     host_result = result["device"]

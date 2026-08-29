@@ -245,7 +245,7 @@ export function AddDevicePage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label>Auth Level</Label>
-                    <Select value={authlevel} onValueChange={setAuthlevel}>
+                    <Select value={authlevel} onValueChange={v => v != null && setAuthlevel(v)}>
                       <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="noAuthNoPriv">noAuthNoPriv</SelectItem>
@@ -264,7 +264,7 @@ export function AddDevicePage() {
                   </div>
                   <div className="space-y-1.5">
                     <Label>Auth Algorithm</Label>
-                    <Select value={authalgo} onValueChange={setAuthalgo}>
+                    <Select value={authalgo} onValueChange={v => v != null && setAuthalgo(v)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="MD5">MD5</SelectItem>
@@ -278,7 +278,7 @@ export function AddDevicePage() {
                   </div>
                   <div className="space-y-1.5">
                     <Label>Crypto Algorithm</Label>
-                    <Select value={cryptoalgo} onValueChange={setCryptoalgo}>
+                    <Select value={cryptoalgo} onValueChange={v => v != null && setCryptoalgo(v)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="AES">AES</SelectItem>
@@ -310,14 +310,14 @@ export function AddDevicePage() {
                 </p>
               )}
 
-              {connections.map((conn, idx) => (
+              {connections.map((conn) => (
                 <div key={conn.id} className="relative border rounded-lg p-4 flex flex-col gap-3 bg-muted/30">
                   {/* Connection header */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Select
                         value={conn.type}
-                        onValueChange={v => updateConnection(conn.id, 'type', v)}
+                        onValueChange={v => v != null && updateConnection(conn.id, 'type', v as string)}
                       >
                         <SelectTrigger className="w-28 h-7">
                           <SelectValue />
@@ -418,7 +418,7 @@ export function AddDevicePage() {
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs">Baud Rate</Label>
-                        <Select value={conn.baudRate} onValueChange={v => updateConnection(conn.id, 'baudRate', v)}>
+                        <Select value={conn.baudRate} onValueChange={v => v != null && updateConnection(conn.id, 'baudRate', v)}>
                           <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             {['9600', '19200', '38400', '57600', '115200'].map(b => (

@@ -23,23 +23,15 @@ export function useDevices(projectId: string | null) {
         const data = doc.data();
         return {
           id: doc.id,
-          name: data.name,
-          type: data.type,
-          host: data.host,
-          port: data.port,
-          username: data.username,
-          authType: data.authType,
-          password: data.password,
-          privateKey: data.privateKey,
-          path: data.path,
-          baudRate: data.baudRate,
-          connectionStatus: "Offline", // Initial state
+          name: data.name ?? "",
+          connections: data.connections ?? [],
+          librenms: data.librenms,
         } as DeviceConfig;
       });
       setDevices(fetched);
       setLoading(false);
       
-      // Sync to main process
+      // Sync device list to Electron main process for session management
       // @ts-ignore
       if (window.api && window.api.syncDevices) {
         // @ts-ignore

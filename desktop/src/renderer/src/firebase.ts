@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, User } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut, User } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 // Replace with your actual Firebase config
@@ -18,5 +18,5 @@ const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 const db = getFirestore(app);
 
-export { auth, googleProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, db };
+export { auth, googleProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut, db };
 export type { User };

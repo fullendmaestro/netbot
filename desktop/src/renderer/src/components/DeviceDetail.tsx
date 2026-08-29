@@ -9,10 +9,10 @@ import { Skeleton } from './ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 
 const AGENT_URL = import.meta.env.VITE_AGENT_URL;
+import { auth } from '../firebase';
 
 async function fetchProxy(path: string): Promise<any> {
-  // @ts-ignore
-  const token = await window.api.getAuthToken?.() ?? '';
+  const token = await auth.currentUser?.getIdToken() ?? '';
   const resp = await fetch(`${AGENT_URL}${path}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });

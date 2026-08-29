@@ -2,6 +2,8 @@ import os
 import asyncio
 import uvicorn
 from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from google.adk.cli.fast_api import get_fast_api_app
 import firebase_admin
@@ -9,10 +11,8 @@ from api.hello import router as hello_router
 from api.gns3 import router as gns3_router
 from api.librenms import router as librenms_router
 
-load_dotenv()
-
 if not firebase_admin._apps:
-    firebase_admin.initialize_app(options={'projectId': 'netbot-603c0'})
+    firebase_admin.initialize_app(options={'projectId': os.getenv('FIREBASE_PROJECT_ID', 'netbot-603c0')})
 
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
 SESSION_SERVICE_URI = "sqlite+aiosqlite:///./sessions.db"

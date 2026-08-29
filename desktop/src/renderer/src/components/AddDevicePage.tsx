@@ -10,6 +10,7 @@ import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 
 const AGENT_URL = import.meta.env.VITE_AGENT_URL;
+import { auth } from '../firebase';
 
 type ConnectionType = 'ssh' | 'telnet' | 'serial';
 
@@ -138,8 +139,7 @@ export function AddDevicePage() {
       }
 
       // Get Firebase auth token
-      // @ts-ignore
-      const token = await window.api.getAuthToken?.() ?? '';
+      const token = await auth.currentUser?.getIdToken() ?? '';
 
       const resp = await fetch(`${AGENT_URL}/api/librenms/devices`, {
         method: 'POST',

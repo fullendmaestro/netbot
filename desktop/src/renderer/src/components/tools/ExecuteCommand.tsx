@@ -5,7 +5,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { TerminalSquare, Loader2, ExternalLink } from 'lucide-react'
 import '@xterm/xterm/css/xterm.css'
 
-export const RunTerminalCommandUI: ToolCallMessagePartComponent<{ device_identifier: string, command: string }, any> = ({
+export const ExecuteCommandUI: ToolCallMessagePartComponent<{ device_identifier: string, command: string }, any> = ({
   args,
   status,
   result

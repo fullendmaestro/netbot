@@ -1,11 +1,11 @@
 'use generative'
 
 import { defineToolkit } from '@assistant-ui/react'
-import { RunTerminalCommandUI } from './RunTerminalCommand'
+import { ExecuteCommandUI } from './ExecuteCommand'
 
 export const toolkit = defineToolkit({
-  run_terminal_command: {
+  execute_command: {
     type: 'backend',
-    render: RunTerminalCommandUI
+    render: ExecuteCommandUI
   }
 })

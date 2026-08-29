@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 
-const AGENT_URL = import.meta.env.AGENT_URL;
+const AGENT_URL = import.meta.env.VITE_AGENT_URL;
 
 type ConnectionType = 'ssh' | 'telnet' | 'serial';
 

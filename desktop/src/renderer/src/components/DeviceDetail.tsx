@@ -8,7 +8,7 @@ import { Badge } from './ui/badge';
 import { Skeleton } from './ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 
-const AGENT_URL = import.meta.env.AGENT_URL;
+const AGENT_URL = import.meta.env.VITE_AGENT_URL;
 
 async function fetchProxy(path: string): Promise<any> {
   // @ts-ignore

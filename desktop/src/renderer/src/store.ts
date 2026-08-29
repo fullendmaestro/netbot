@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { User } from './firebase';
+import type { DeviceConfig } from '../../shared/types';
 
 interface AppState {
   user: User | null;
@@ -10,6 +11,8 @@ interface AppState {
   setActiveView: (view: string) => void;
   selectedGns3Project: string | null;
   setSelectedGns3Project: (projectId: string | null) => void;
+  selectedDevice: DeviceConfig | null;
+  setSelectedDevice: (device: DeviceConfig | null) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -21,4 +24,6 @@ export const useStore = create<AppState>((set) => ({
   setActiveView: (activeView) => set({ activeView }),
   selectedGns3Project: null,
   setSelectedGns3Project: (selectedGns3Project) => set({ selectedGns3Project }),
+  selectedDevice: null,
+  setSelectedDevice: (selectedDevice) => set({ selectedDevice }),
 }));

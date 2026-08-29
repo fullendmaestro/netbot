@@ -87,6 +87,7 @@ import {
 } from 'lucide-react'
 
 import type { DeviceConfig } from '../../../shared/types'
+import { useStore } from '../store'
 
 const features = tableFeatures({
   columnFilteringFeature,
@@ -117,7 +118,7 @@ function DragHandle({ id }: { id: string }) {
   )
 }
 
-function makeColumns(onRemoveDevice: (id: string) => void) {
+function makeColumns(onRemoveDevice: (id: string) => void, onSelectDevice: (device: DeviceConfig) => void) {
   return columnHelper.columns([
     columnHelper.display({
       id: 'drag',
@@ -150,7 +151,14 @@ function makeColumns(onRemoveDevice: (id: string) => void) {
     }),
     columnHelper.accessor('name', {
       header: 'Name',
-      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>
+      cell: ({ row }) => (
+        <span 
+          className="font-medium cursor-pointer text-blue-500 hover:underline"
+          onClick={() => onSelectDevice(row.original)}
+        >
+          {row.original.name}
+        </span>
+      )
     }),
     columnHelper.display({
       id: 'address',
@@ -300,6 +308,8 @@ export function DeviceTable({ projectId, devices }: { projectId: string, devices
   )
   const dataIds = React.useMemo<UniqueIdentifier[]>(() => devices?.map(({ id }) => id) || [], [devices])
 
+  const { setSelectedDevice } = useStore();
+
   const handleRemoveDevice = React.useCallback(async (id: string) => {
     try {
       await deleteDoc(doc(db, "projects", projectId, "devices", id))
@@ -308,7 +318,7 @@ export function DeviceTable({ projectId, devices }: { projectId: string, devices
     }
   }, [projectId])
 
-  const columns = React.useMemo(() => makeColumns(handleRemoveDevice), [handleRemoveDevice])
+  const columns = React.useMemo(() => makeColumns(handleRemoveDevice, setSelectedDevice), [handleRemoveDevice, setSelectedDevice])
 
 const handleAddDevice = async () => {
     const newDevice: DeviceConfig = {

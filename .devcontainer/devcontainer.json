@@ -1,0 +1,13 @@
+{
+    "image": "mcr.microsoft.com/devcontainers/typescript-node:4-24",
+    "features": {
+        "ghcr.io/devcontainers/features/python:1": {},
+        "ghcr.io/devcontainers/features/desktop-lite:1": {},
+        "ghcr.io/devcontainers/features/git-lfs:1": {},
+        "ghcr.io/devcontainers/features/sshd:1": {
+            "version": "latest"
+        }
+    },
+    "forwardPorts": [6080],
+    "postCreateCommand": "npm install -g pnpm && sudo apt-get update && sudo apt-get install -y libnss3 libxss1 libasound2 libatk-bridge2.0-0 libgtk-3-0 libgbm1 || sudo apt-get install -y libnss3 libxss1 libasound2t64 libatk-bridge2.0-0t64 libgtk-3-0t64 libgbm1"
+}

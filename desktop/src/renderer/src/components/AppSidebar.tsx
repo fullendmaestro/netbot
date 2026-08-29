@@ -19,6 +19,7 @@ import {
   Settings,
   CommandIcon
 } from "lucide-react"
+import { NavUser } from "./NavUser"
 
 const data = {
   navMain: [
@@ -101,6 +102,7 @@ export function AppSidebar({
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="gap-2">
+              <NavUser />
               {data.navSecondary.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton

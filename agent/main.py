@@ -7,6 +7,7 @@ from google.adk.cli.fast_api import get_fast_api_app
 import firebase_admin
 from api.hello import router as hello_router
 from api.gns3 import router as gns3_router
+from api.librenms import router as librenms_router
 
 load_dotenv()
 
@@ -28,6 +29,7 @@ app: FastAPI = get_fast_api_app(
 # Mount the HTTP APIs again
 app.include_router(hello_router)
 app.include_router(gns3_router)
+app.include_router(librenms_router)
 
 
 

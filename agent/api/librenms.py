@@ -188,8 +188,8 @@ async def get_device_overview(hostname: str, _user=Depends(verify_token)):
 
 @router.get("/devices/{hostname}/ports")
 async def get_device_ports(hostname: str, _user=Depends(verify_token)):
-    """Proxy: GET /api/v0/ports/search/{hostname}"""
-    return await _lnms_get(f"/ports/search/{hostname}")
+    """Proxy: GET /api/v0/devices/{hostname}/ports"""
+    return await _lnms_get(f"/devices/{hostname}/ports")
 
 
 @router.get("/devices/{hostname}/alerts")

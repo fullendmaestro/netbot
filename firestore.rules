@@ -1,8 +1,27 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Only authenticated users can access any data
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
+    }
+
+    // Projects: authenticated users can read/write their project data
+    match /projects/{projectId} {
+      allow read, write: if request.auth != null;
+
+      // Devices: read/write for authenticated users
+      match /devices/{deviceId} {
+        allow read, write: if request.auth != null;
+      }
+
+      // GNS3 projects: read/write for authenticated users
+      match /gns3_projects/{gns3ProjectId} {
+        allow read, write: if request.auth != null;
+      }
+
+      // Commands collection removed — agent now connects directly via SSH/Telnet
     }
   }
 }

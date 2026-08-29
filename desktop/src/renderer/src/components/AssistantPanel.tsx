@@ -17,7 +17,7 @@ import { toolkit } from './tools/toolkit'
 import { User } from '../firebase'
 import { useStore } from '../store'
 
-const ADK_URL = 'http://localhost:8000'
+const ADK_URL = import.meta.env.VITE_ADK_URL;
 
 export function AssistantPanel({ user, projectId }: { user: User, projectId: string }) {
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -63,7 +63,7 @@ export function AssistantPanel({ user, projectId }: { user: User, projectId: str
   const config = AuiConfig({ tools: Tools({ toolkit }) })
 
   return (
-    <AssistantRuntimeProvider runtime={runtime} config={config}>
+    <AssistantRuntimeProvider key={currentAppName} runtime={runtime} config={config}>
       <Card className="shrink-0 flex flex-col rounded-xl overflow-hidden border gap-0 p-0 h-full">
         <CardHeader className="flex h-12 flex-row items-center justify-between px-3 py-2 border-b bg-muted/50 rounded-t-xl rounded-b-none">
           <CardTitle className="flex items-center gap-1.5 text-sm font-medium">

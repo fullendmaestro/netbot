@@ -96,7 +96,7 @@ function OverviewTab({ hostname }: { hostname: string }) {
             {rows.map(([label, value]) => (
               <TableRow key={label}>
                 <TableCell className="font-medium text-muted-foreground w-40">{label}</TableCell>
-                <TableCell>
+                <TableCell className="break-words whitespace-pre-wrap">
                   {label === 'Status'
                     ? <Badge variant={value === 'Up' ? 'default' : 'destructive'}>{value}</Badge>
                     : String(value ?? '-')}

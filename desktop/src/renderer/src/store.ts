@@ -13,6 +13,8 @@ interface AppState {
   setSelectedGns3Project: (projectId: string | null) => void;
   selectedDevice: DeviceConfig | null;
   setSelectedDevice: (device: DeviceConfig | null) => void;
+  addDeviceOpen: boolean;
+  setAddDeviceOpen: (open: boolean) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -26,4 +28,6 @@ export const useStore = create<AppState>((set) => ({
   setSelectedGns3Project: (selectedGns3Project) => set({ selectedGns3Project }),
   selectedDevice: null,
   setSelectedDevice: (selectedDevice) => set({ selectedDevice }),
+  addDeviceOpen: false,
+  setAddDeviceOpen: (addDeviceOpen) => set({ addDeviceOpen }),
 }));

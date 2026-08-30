@@ -3,6 +3,7 @@ from typing import Any
 from google.adk.tools.tool_context import ToolContext as Context
 from ..db import get_devices_from_db, find_device, get_default_connection
 from ..nornir_executor import run_batch_commands
+from ..nornir_executor import run_batch_config_commands
 
 def execute_command(ctx: Context, device_identifier: str, command: str) -> str:
     """
@@ -125,5 +126,85 @@ def execute_multiple_commands(ctx: Context, execution_plan: list[dict[str, Any]]
                 
     except Exception as e:
         return json.dumps({"error": f"Critical execution failure: {str(e)}", "partial_results": results_summary})
+
+    return json.dumps({"execution_results": results_summary}, indent=2)
+
+
+def execute_config_commands(ctx: Context, execution_plan: list[dict[str, Any]]) -> str:
+    """
+    Executes CONFIGURATION commands on multiple devices in the topology concurrently.
+    Use this tool ONLY for changing device settings (e.g., 'interface Loopback0', 'ip address ...', 'router ospf 1').
+    
+    IMPORTANT SAFETY WARNING:
+    Do NOT use this tool for dangerous operations that could reboot, erase, or factory-reset devices.
+    Forbidden operations include but are not limited to:
+    - reload / reboot commands
+    - write erase / erase startup-config
+    - format / erase nvram / delete flash:
+    - boot system commands
+    - factory-reset commands
+    - any commands that require user confirmation prompts
+    
+    Args:
+        execution_plan: A list of dictionaries defining the target devices and configuration commands.
+        Example schema:
+        [
+            {
+                "device_identifier": "R-1", 
+                "commands": ["interface Loopback0", "ip address 1.1.1.1 255.255.255.255"]
+            }
+        ]
+    """
+    project_id = ctx.state.get("project_id")
+    if not project_id:
+        return json.dumps({"error": "No active project found in context state."})
+
+    devices_db = get_devices_from_db(project_id)
+    batch_configs = []
+    results_summary = []
+
+    for plan in execution_plan:
+        target_id = plan.get("device_identifier")
+        commands = plan.get("commands", [])
+        
+        device = find_device(devices_db, target_id)
+        if not device:
+            results_summary.append({"device": target_id, "status": "failed", "error": "Device not found."})
+            continue
+
+        connection = get_default_connection(device)
+        if not connection or connection.get("type") == "serial":
+            results_summary.append({
+                "device": target_id, 
+                "status": "failed", 
+                "error": "No valid remote connection (serial-only or missing)."
+            })
+            continue
+
+        batch_configs.append({
+            "id": device.get("id"),
+            "connection": connection,
+            "os_hint": (device.get("librenms") or {}).get("os"),
+            "commands": commands
+        })
+
+    if not batch_configs:
+        return json.dumps({"execution_results": results_summary})
+
+    try:
+        execution_results = run_batch_config_commands(batch_configs)
+        
+        for config in batch_configs:
+            dev_id = config["id"]
+            if dev_id in execution_results:
+                result_data = execution_results[dev_id]
+                results_summary.append({
+                    "device_id": dev_id,
+                    "status": "success" if "error" not in result_data else "partial_failure",
+                    "outputs": result_data
+                })
+                
+    except Exception as e:
+        return json.dumps({"error": f"Critical config execution failure: {str(e)}", "partial_results": results_summary})
 
     return json.dumps({"execution_results": results_summary}, indent=2)

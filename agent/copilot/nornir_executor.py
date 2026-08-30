@@ -6,6 +6,7 @@ from nornir import InitNornir
 from nornir.core.plugins.inventory import InventoryPluginRegister
 from nornir.core.inventory import Inventory, Hosts, Groups, Defaults, Host, Group
 from nornir_netmiko.tasks import netmiko_send_command
+from nornir_netmiko.tasks import netmiko_send_config
 from nornir.core.task import Task, Result
 from netmiko.exceptions import NetmikoAuthenticationException, NetmikoTimeoutException, ReadTimeout
 
@@ -105,6 +106,88 @@ def run_batch_commands(device_configs: list[dict[str, Any]]) -> dict[str, dict[s
     )
 
     task_result = nr.run(task=_robust_netmiko_task, commands_map=commands_map)
+    
+    final_results = {}
+    for host, multi_result in task_result.items():
+        if multi_result.failed:
+            final_results[host] = {"error": str(multi_result.exception or multi_result[0].result)}
+        else:
+            final_results[host] = multi_result[0].result
+
+    return final_results
+
+
+def _robust_netmiko_config_task(task: Task, commands_map: dict[str, list[str]]) -> Result:
+    """Executes configuration commands with a single-retry mechanism for prompt detection stability."""
+    outputs = {}
+    config_commands = commands_map.get(task.host.name, [])
+    
+    if not config_commands:
+        return Result(host=task.host, result={"error": "No configuration commands provided."})
+
+    try:
+        result = task.run(
+            task=netmiko_send_config, 
+            config_commands=config_commands
+        )
+        outputs["execution_result"] = result.result
+    except ReadTimeout as e:
+        logger.warning(f"Timeout on {task.host.name} during config. Retrying once...")
+        try:
+            result = task.run(
+                task=netmiko_send_config, 
+                config_commands=config_commands
+            )
+            outputs["execution_result"] = result.result
+        except Exception as retry_e:
+            outputs["error"] = f"Config failed after retry (Timeout): {str(retry_e)}"
+    except Exception as e:
+        # Retry on transient prompt failures commonly seen in virtualized IOS nodes
+        if "netmiko_send_config (failed)" in str(e):
+             try:
+                 result = task.run(task=netmiko_send_config, config_commands=config_commands)
+                 outputs["execution_result"] = result.result
+             except Exception as inner_e:
+                 outputs["error"] = f"Config failed: {str(inner_e)}"
+        else:
+            outputs["error"] = f"Config failed: {str(e)}"
+            
+    return Result(host=task.host, result=outputs)
+
+
+def run_batch_config_commands(device_configs: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
+    """
+    Executes multiple configuration commands across multiple devices concurrently.
+    """
+    hosts_inventory = {}
+    commands_map = {}
+
+    for config in device_configs:
+        conn = config["connection"]
+        device_id = config["id"]
+        conn_type = conn.get("type", "ssh")
+        device_type = _resolve_device_type(conn_type, config.get("os_hint"))
+        
+        hosts_inventory[device_id] = {
+            "hostname": conn.get("host", ""),
+            "port": conn.get("port") or (22 if conn_type == "ssh" else 23),
+            "username": conn.get("username", ""),
+            "password": conn.get("password", ""),
+            "platform": device_type,
+            "connection_options": {"netmiko": {"extras": {"device_type": device_type}}},
+        }
+        commands_map[device_id] = config.get("commands", [])
+
+    if not hosts_inventory:
+        return {}
+
+    nr = InitNornir(
+        inventory={"plugin": "DictInventory", "options": {"hosts": hosts_inventory}},
+        runner={"plugin": "threaded", "options": {"num_workers": 10}},
+        logging={"enabled": False},
+    )
+
+    task_result = nr.run(task=_robust_netmiko_config_task, commands_map=commands_map)
     
     final_results = {}
     for host, multi_result in task_result.items():

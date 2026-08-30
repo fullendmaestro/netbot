@@ -205,10 +205,7 @@ function makeColumns(
               onClick={async () => {
                 const defaultConn: DeviceConnection | undefined = row.original.connections?.find(c => c.isDefault) ?? row.original.connections?.[0]
                 if (!defaultConn || defaultConn.type === 'serial') return
-                const sessionId = await (window as any).api.connectDevice({
-                  ...defaultConn,
-                  name: row.original.name,
-                })
+                const sessionId = await (window as any).api.connectDevice(row.original)
                 window.dispatchEvent(
                   new CustomEvent('open-terminal-tab', {
                     detail: { sessionId, device: { ...row.original, ...defaultConn } }

@@ -5,8 +5,7 @@ import type { DeviceConfig } from '../shared/types'
 const api = {
   setAuthToken: (token: string | null) => ipcRenderer.send('set-auth-token', token),
   setProjectId: (projectId: string) => ipcRenderer.send('set-project-id', projectId),
-  syncDevices: (devices: DeviceConfig[]) => ipcRenderer.send('sync-devices', devices),
-  getDevices: (): Promise<DeviceConfig[]> => ipcRenderer.invoke('get-devices'),
+
   connectDevice: (device: DeviceConfig) => ipcRenderer.invoke('connect-device', device),
   disconnectDevice: (sessionId?: string) => ipcRenderer.send('disconnect-device', sessionId),
   sendTerminalInput: (sessionId: string, data: string) => ipcRenderer.send('terminal-input', { sessionId, data }),
@@ -17,8 +16,7 @@ const api = {
     ipcRenderer.on('device-status', (_, update) => callback(update));
   },
   getSerialPorts: () => ipcRenderer.invoke('get-serial-ports'),
-  revealAgentSession: (deviceId: string) => ipcRenderer.invoke('reveal-agent-session', deviceId),
-  executeAgentCommand: (deviceIdentifier: string, command: string) => ipcRenderer.invoke('execute-agent-command', deviceIdentifier, command),
+
 }
 
 if (process.contextIsolated) {

@@ -31,12 +31,7 @@ export function useDevices(projectId: string | null) {
       setDevices(fetched);
       setLoading(false);
       
-      // Sync device list to Electron main process for session management
-      // @ts-ignore
-      if (window.api && window.api.syncDevices) {
-        // @ts-ignore
-        window.api.syncDevices(fetched);
-      }
+
     }, (err) => {
       console.error("Error fetching devices from Firestore", err);
       setError(err);

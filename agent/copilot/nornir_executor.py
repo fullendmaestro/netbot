@@ -1,17 +1,15 @@
-"""
-nornir_executor.py
-
-Builds a per-call Nornir inventory from a DeviceConnection dict,
-maps the device OS to a Netmiko device_type, and executes a single
-read-only command via netmiko_send_command.
-"""
 from __future__ import annotations
+import logging
+from typing import Any
 
 from nornir import InitNornir
 from nornir.core.plugins.inventory import InventoryPluginRegister
 from nornir.core.inventory import Inventory, Hosts, Groups, Defaults, Host, Group
 from nornir_netmiko.tasks import netmiko_send_command
 from nornir.core.task import Task, Result
+from netmiko.exceptions import NetmikoAuthenticationException, NetmikoTimeoutException, ReadTimeout
+
+logger = logging.getLogger(__name__)
 
 class DictInventory:
     def __init__(self, hosts: dict = None, groups: dict = None, defaults: dict = None, **kwargs):
@@ -22,123 +20,97 @@ class DictInventory:
     def _parse_connection_options(self, data: dict) -> dict:
         from nornir.core.inventory import ConnectionOptions
         if "connection_options" in data:
-            opts = {}
-            for k, v in data["connection_options"].items():
-                opts[k] = ConnectionOptions(**v)
+            opts = {k: ConnectionOptions(**v) for k, v in data["connection_options"].items()}
             data["connection_options"] = opts
         return data
 
     def load(self) -> Inventory:
-        hosts = Hosts()
-        for name, host_dict in self.hosts_dict.items():
-            hosts[name] = Host(name=name, **self._parse_connection_options(host_dict))
-
-        groups = Groups()
-        for name, group_dict in self.groups_dict.items():
-            groups[name] = Group(name=name, **self._parse_connection_options(group_dict))
-
+        hosts = Hosts({name: Host(name=name, **self._parse_connection_options(h)) for name, h in self.hosts_dict.items()})
+        groups = Groups({name: Group(name=name, **self._parse_connection_options(g)) for name, g in self.groups_dict.items()})
         defaults = Defaults(**self._parse_connection_options(self.defaults_dict))
-
         return Inventory(hosts=hosts, groups=groups, defaults=defaults)
-
-from netmiko.exceptions import (
-    NetmikoAuthenticationException,
-    NetmikoTimeoutException,
-)
 
 InventoryPluginRegister.register("DictInventory", DictInventory)
 
-# LibreNMS os → Netmiko device_type mapping
 OS_MAP: dict[str, str] = {
-    "ios": "cisco_ios",
-    "iosxe": "cisco_xe",
-    "iosxr": "cisco_xr",
-    "nxos": "cisco_nxos",
-    "asa": "cisco_asa",
-    "junos": "juniper_junos",
-    "routeros": "mikrotik_routeros",
-    "edgeos": "ubiquiti_edge",
-    "arubaos": "aruba_os",
-    "linux": "linux",
-    "windows": "generic",
+    "ios": "cisco_ios", "iosxe": "cisco_xe", "nxos": "cisco_nxos",
+    "junos": "juniper_junos", "linux": "linux", "windows": "generic",
 }
 
-
 def _resolve_device_type(connection_type: str, os_hint: str | None) -> str:
-    """
-    Determine the Netmiko device_type.
-    - For SSH: use OS mapping or fall back to autodetect.
-    - For Telnet: append _telnet suffix to the resolved type.
-    """
     base = OS_MAP.get((os_hint or "").lower(), "autodetect")
-    if connection_type == "telnet":
-        # Netmiko telnet device types use _telnet suffix
-        return base if base == "autodetect" else f"{base}_telnet"
-    return base
+    return f"{base}_telnet" if connection_type == "telnet" and base != "autodetect" else base
 
-
-def run_command(connection: dict, os_hint: str | None, command: str) -> str:
+def _robust_netmiko_task(task: Task, commands_map: dict[str, list[str]]) -> Result:
+    """Executes commands with a single-retry mechanism for prompt detection stability."""
+    outputs = {}
+    
+    # Extract the specific commands for this current device
+    commands = commands_map.get(task.host.name, [])
+    
+    for cmd in commands:
+        try:
+            # Use timing mode with delay factor to ensure stability on slow compute instances
+            result = task.run(
+                task=netmiko_send_command, 
+                command_string=cmd,
+                use_timing=True,
+                delay_factor=2
+            )
+            outputs[cmd] = result.result
+        except ReadTimeout as e:
+            logger.warning(f"Timeout on {task.host.name} for '{cmd}'. Retrying once...")
+            try:
+                result = task.run(task=netmiko_send_command, command_string=cmd, use_timing=True, delay_factor=4)
+                outputs[cmd] = result.result
+            except Exception as retry_e:
+                outputs[cmd] = f"Command failed after retry (Timeout): {str(retry_e)}"
+        except Exception as e:
+            outputs[cmd] = f"Command failed: {str(e)}"
+            
+    return Result(host=task.host, result=outputs)
+def run_batch_commands(device_configs: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
     """
-    Execute a single read-only command on a device using Nornir + Netmiko.
-
+    Executes multiple commands across multiple devices concurrently.
+    
     Args:
-        connection: A DeviceConnection dict (keys: type, host, port, username, password, etc.)
-        os_hint:    The `os` value from librenms snapshot (e.g. "ios", "junos").
-        command:    The command string to execute.
-
-    Returns:
-        Command output as a string.
-
-    Raises:
-        NetmikoAuthenticationException: on auth failure.
-        NetmikoTimeoutException: on connection timeout.
-        Exception: on any other error.
+        device_configs: List of dicts containing 'connection', 'os_hint', and 'commands'.
     """
-    conn_type = connection.get("type", "ssh")
-    device_type = _resolve_device_type(conn_type, os_hint)
+    hosts_inventory = {}
+    commands_map = {}
 
-    host = connection.get("host", "")
-    port = connection.get("port") or (22 if conn_type == "ssh" else 23)
-    username = connection.get("username", "")
-    password = connection.get("password", "")
-
-    hosts = {
-        "device": {
-            "hostname": host,
-            "port": port,
-            "username": username,
-            "password": password,
+    for config in device_configs:
+        conn = config["connection"]
+        device_id = config["id"]
+        conn_type = conn.get("type", "ssh")
+        device_type = _resolve_device_type(conn_type, config.get("os_hint"))
+        
+        hosts_inventory[device_id] = {
+            "hostname": conn.get("host", ""),
+            "port": conn.get("port") or (22 if conn_type == "ssh" else 23),
+            "username": conn.get("username", ""),
+            "password": conn.get("password", ""),
             "platform": device_type,
-            "connection_options": {
-                "netmiko": {
-                    "extras": {
-                        "device_type": device_type,
-                    }
-                }
-            },
+            "connection_options": {"netmiko": {"extras": {"device_type": device_type}}},
         }
-    }
+        commands_map[device_id] = config.get("commands", [])
+
+    if not hosts_inventory:
+        return {}
 
     nr = InitNornir(
-        inventory={
-            "plugin": "DictInventory",
-            "options": {
-                "hosts": hosts,
-                "groups": {},
-                "defaults": {},
-            },
-        },
-        runner={"plugin": "serial"},
+        inventory={"plugin": "DictInventory", "options": {"hosts": hosts_inventory}},
+        runner={"plugin": "threaded", "options": {"num_workers": 10}},
         logging={"enabled": False},
     )
 
-    result = nr.run(task=netmiko_send_command, command_string=command)
-    host_result = result["device"]
+    task_result = nr.run(task=_robust_netmiko_task, commands_map=commands_map)
+    
+    final_results = {}
+    for host, multi_result in task_result.items():
+        if multi_result.failed:
+            final_results[host] = {"error": str(multi_result.exception or multi_result[0].result)}
+        else:
+            final_results[host] = multi_result[0].result
 
-    if host_result.failed:
-        exc = host_result.exception
-        if exc:
-            raise exc
-        raise Exception(f"Command execution failed: {host_result}")
-
-    return str(host_result.result).strip()
+    return final_results
